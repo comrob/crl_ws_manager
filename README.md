@@ -1,5 +1,8 @@
 # ws_manager
 
+[![CI](https://github.com/comrob/crl_ws_manager/actions/workflows/ci.yml/badge.svg)](https://github.com/comrob/crl_ws_manager/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/comrob/crl_ws_manager)](https://github.com/comrob/crl_ws_manager/releases)
+
 > **TL;DR** — A `ws` command for ROS 2 colcon workspaces. Build, clean, navigate, and inspect packages without typing long paths or remembering colcon flags.
 
 ```bash
@@ -55,7 +58,7 @@ source ~/.bashrc
 
 - Symlinks all `bin/` scripts into `~/.local/bin/` as `ws`, `ws-build`, etc.
 - Symlinks `completion/ws_manager.bash` into `~/.config/crl_ws_manager/`
-- Symlinks `lib/ws_lib.sh` into `~/.local/bin/` (fallback for installed symlinks)
+- Symlinks `lib/ws_lib.sh` into `~/.config/crl_ws_manager/` for the sourced shell functions
 - Creates `~/.config/crl_ws_manager/ws_config.bash` with defaults (if absent)
 - Adds `~/.local/bin` to `PATH` in `~/.bashrc` if missing
 - Adds a source block to `~/.bashrc` to load shell functions on login
