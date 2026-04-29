@@ -148,7 +148,9 @@ ws_resolve_workspaces selected_workspaces selected_packages workspaces resolved_
 # This makes ros2 pkg prefix, ament paths, etc. available for the build.
 if [[ -n "${ROS_DISTRO:-}" && -f "/opt/ros/${ROS_DISTRO}/setup.bash" ]]; then
   # shellcheck disable=SC1090,SC1091
+  set +u
   source "/opt/ros/${ROS_DISTRO}/setup.bash"
+  set -u
 fi
 
 built_any=false
