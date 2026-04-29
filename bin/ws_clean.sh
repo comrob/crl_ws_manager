@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# shellcheck source=ws_lib.sh
-source "$SCRIPT_DIR/ws_lib.sh"
+# shellcheck source=../lib/ws_lib.sh
+source "$SCRIPT_DIR/../lib/ws_lib.sh"
 
 print_usage() {
   echo "Usage: ws clean [--clean-all] [-w|--ws <workspace>]... [-p <package>]... [<package>...]"
@@ -19,7 +20,7 @@ print_usage() {
   echo "  1. Explicit -w/--ws flags."
   echo "  2. Inferred from package location (scans env + default workspaces)."
   echo "  3. All env-detected workspaces (ROS_PACKAGE_PATH / COLCON_PREFIX_PATH)."
-  echo "  4. Defaults: ~/sw_ws  ~/drv_ws."
+  echo "  4. WS_DEFAULT_WORKSPACES (configurable in ws_config.bash; default: ~/sw_ws  ~/drv_ws)."
   echo ""
   echo "Examples:"
   echo "  ws clean pylon_instant_camera"

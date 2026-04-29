@@ -103,6 +103,9 @@ ws_load_config() {
   if ! declare -p WS_EDITOR_ARGS >/dev/null 2>&1; then
     WS_EDITOR_ARGS=()
   fi
+  if ! declare -p WS_DEFAULT_WORKSPACES >/dev/null 2>&1; then
+    WS_DEFAULT_WORKSPACES=("$HOME/sw_ws" "$HOME/drv_ws")
+  fi
 
   local cfg_file=""
   if [[ -f "$(ws_config_file)" ]]; then
@@ -147,6 +150,14 @@ WS_BUILD_DEFAULT_ARGS=(
 )
 WS_BUILD_PACKAGE_SELECT_FLAG="--packages-select"
 WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=true
+
+# Fallback workspace roots used when none are detectable from the ROS
+# environment (ROS_PACKAGE_PATH / COLCON_PREFIX_PATH).  Add or remove paths
+# to match your setup.
+WS_DEFAULT_WORKSPACES=(
+  "$HOME/sw_ws"
+  "$HOME/drv_ws"
+)
 
 # Editor command used by: ws open <package>
 WS_EDITOR_PROGRAM="code"
@@ -237,8 +248,8 @@ _ws_append_unique() {
 # ws_detect_from_env array-name
 #   Populate the named array with workspace roots detected from the current
 #   ROS environment (ROS_PACKAGE_PATH and COLCON_PREFIX_PATH).  Duplicate
-#   entries are suppressed.  $HOME/sw_ws and $HOME/drv_ws are appended as
-#   fallback candidates at the end if they are not already present.
+#   entries are suppressed.  WS_DEFAULT_WORKSPACES entries (configurable via
+#   ws_config.bash; defaults to ~/sw_ws ~/drv_ws) are appended as fallbacks.
 # ---------------------------------------------------------------------------
 ws_detect_from_env() {
   local out_name="$1"
@@ -246,6 +257,7 @@ ws_detect_from_env() {
   local entry ws_root
   local -a _env_paths=()
 
+  ws_load_config
   _env_ref=()
 
   if [[ -n "${ROS_PACKAGE_PATH:-}" ]]; then
@@ -272,10 +284,11 @@ ws_detect_from_env() {
     done
   fi
 
-  # Always add the two default workspaces as candidates (they may already be
-  # present if the env is set up; _ws_append_unique deduplicates).
-  _ws_append_unique "$out_name" "$HOME/sw_ws"
-  _ws_append_unique "$out_name" "$HOME/drv_ws"
+  # Append user-configured fallback workspaces (from WS_DEFAULT_WORKSPACES).
+  local _default_ws
+  for _default_ws in "${WS_DEFAULT_WORKSPACES[@]:-}"; do
+    [[ -n "$_default_ws" ]] && _ws_append_unique "$out_name" "$_default_ws"
+  done
 }
 
 # ---------------------------------------------------------------------------

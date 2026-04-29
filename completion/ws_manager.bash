@@ -1,24 +1,26 @@
 # Load shared workspace helpers (path normalisation, env detection, package lookup).
-# ws_lib.sh lives next to this file; resolve via BASH_SOURCE when available.
+# ws_lib.sh lives at ../lib/ relative to this file (resolved through the symlink
+# to its real location in the repo).
 if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "bash" ]]; then
-  _ws_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  _ws_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" 2>/dev/null && pwd)"
 else
   _ws_lib_dir="$HOME/.local/bin"
 fi
 if [[ -f "$_ws_lib_dir/ws_lib.sh" ]]; then
-  # shellcheck source=ws_lib.sh
+  # shellcheck source=../lib/ws_lib.sh
   source "$_ws_lib_dir/ws_lib.sh"
-elif [[ -f "$HOME/.local/bin/ws_lib.sh" ]]; then
-  source "$HOME/.local/bin/ws_lib.sh"
 fi
 unset _ws_lib_dir
 
 # Internal ws cd implementation.
 __ws_cd() {
-  local resolve_cmd="$HOME/.local/bin/ws-cd-resolve"
-  if [[ ! -x "$resolve_cmd" ]]; then
-    echo "Error: resolver command not found: $resolve_cmd"
-    echo "Run ./link_tools.sh and source ~/.bashrc"
+  local resolve_cmd
+  if command -v ws-cd-resolve >/dev/null 2>&1; then
+    resolve_cmd="ws-cd-resolve"
+  elif [[ -x "$HOME/.local/bin/ws-cd-resolve" ]]; then
+    resolve_cmd="$HOME/.local/bin/ws-cd-resolve"
+  else
+    echo "Error: ws-cd-resolve not found on PATH. Run ./install.sh and source ~/.bashrc."
     return 1
   fi
 
@@ -73,6 +75,9 @@ ws() {
       ;;
     which)
       "$HOME/.local/bin/ws" which "$@"
+      ;;
+    update|version|--version|doctor)
+      command ws "$cmd" "$@"
       ;;
     *)
       echo "Usage: ws [cd | build | clean | list | open | config | which] <args>"
@@ -184,7 +189,7 @@ __ws_complete() {
   prev="${COMP_WORDS[COMP_CWORD-1]}"
 
   if [[ $COMP_CWORD -eq 1 ]]; then
-    COMPREPLY=( $(compgen -W "build clean cd list open config which help --help -h" -- "$cur") )
+    COMPREPLY=( $(compgen -W "build clean cd list open config which update doctor version help --help -h" -- "$cur") )
     return 0
   fi
 

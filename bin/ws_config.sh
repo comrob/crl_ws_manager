@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# shellcheck source=ws_lib.sh
-source "$SCRIPT_DIR/ws_lib.sh"
+# shellcheck source=../lib/ws_lib.sh
+source "$SCRIPT_DIR/../lib/ws_lib.sh"
 
 print_usage() {
   echo "Usage: ws config [command] [args]"

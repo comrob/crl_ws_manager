@@ -1,53 +1,86 @@
 # ws_manager
 
-Workspace management tool for ROS 2 colcon workspaces. Provides `ws build` and `ws cd` commands with bash completion.
+> **TL;DR** — A `ws` command for ROS 2 colcon workspaces. Build, clean, navigate, and inspect packages without typing long paths or remembering colcon flags.
 
-## Files
+```bash
+ws build --all                   # build every detected workspace
+ws build -w drv_ws -p my_pkg     # build one package in a specific workspace
+ws cd liorf_slam_crl             # jump to a package's source directory
+ws cd --install liorf_slam_crl   # jump to its install prefix instead
+ws clean -w drv_ws -p my_pkg     # wipe build/install/log for a package
+ws list -p                       # list all workspaces + packages + install status
+ws open my_pkg                   # open package in VS Code (configurable)
+ws which my_pkg my_launch.py     # show source & install paths for a launch file
+ws config set-build-args --symlink-install --continue-on-error
+ws doctor                        # diagnose PATH, ROS env, colcon, config
+ws update                        # git pull + reinstall in one command
+```
 
-| File | Purpose |
-|------|---------|
-| `install.sh` | Installs the tool (run via `link_tools.sh`) |
-| `ws_manager.sh` | Installed as `ws` — dispatches subcommands |
-| `ws_build.sh` | Installed as `ws-build` — wraps `colcon build` |
-| `ws_clean.sh` | Installed as `ws-clean` — cleans build/install/log artifacts |
-| `ws_list.sh` | Installed as `ws-list` — lists workspaces and package status |
-| `ws_cd_resolve.sh` | Installed as `ws-cd-resolve` — resolves package → directory path |
-| `ws_open.sh` | Installed as `ws-open` — opens package path in editor |
-| `ws_config.sh` | Installed as `ws-config` — manages local configuration |
-| `ws_which.sh` | Installed as `ws-which` — resolves source/install/launch paths |
-| `ws_manager.bash` | Sourced into the user's shell — provides `ws()`, `roscd()`, and bash completion |
+Workspaces are **auto-detected** from `ROS_PACKAGE_PATH` / `COLCON_PREFIX_PATH`. Fallback paths are configurable via `WS_DEFAULT_WORKSPACES` in `ws_config.bash`. Tab completion works everywhere.
+
+---
+
+## Repository layout
+
+```
+bin/               # installed executables (symlinked to ~/.local/bin)
+  ws_manager.sh    # dispatches ws subcommands
+  ws_build.sh      # wraps colcon build
+  ws_clean.sh      # removes build/install/log artifacts
+  ws_cd_resolve.sh # resolves package → directory (used by ws cd)
+  ws_list.sh       # lists workspaces and package status
+  ws_open.sh       # opens a package path in the configured editor
+  ws_config.sh     # manages local configuration
+  ws_which.sh      # resolves source/install/launch file paths
+lib/
+  ws_lib.sh        # shared helpers (sourced, not executed)
+completion/
+  ws_manager.bash  # shell functions, roscd alias, and bash completion
+examples/
+  ws_config.bash   # annotated configuration template
+VERSION            # current version string
+install.sh         # installer
+```
+
+---
 
 ## Installation
 
 ```bash
-./link_tools.sh
+./install.sh
 source ~/.bashrc
 ```
 
-`install.sh` does the following:
+`install.sh`:
 
-- Symlinks `ws`, `ws-build`, `ws-clean`, `ws-list`, `ws-cd-resolve`, `ws-open`, `ws-config`, and `ws-which` into `~/.local/bin/`
-- Symlinks `ws_manager.bash` into `~/.config/crl_ws_manager/ws_manager.bash`
-- Creates `~/.config/crl_ws_manager/ws_config.bash` if no local config exists yet
+- Symlinks all `bin/` scripts into `~/.local/bin/` as `ws`, `ws-build`, etc.
+- Symlinks `completion/ws_manager.bash` into `~/.config/crl_ws_manager/`
+- Symlinks `lib/ws_lib.sh` into `~/.local/bin/` (fallback for installed symlinks)
+- Creates `~/.config/crl_ws_manager/ws_config.bash` with defaults (if absent)
 - Adds `~/.local/bin` to `PATH` in `~/.bashrc` if missing
-- Adds a source block to `~/.bashrc` to load the shell functions
+- Adds a source block to `~/.bashrc` to load shell functions on login
+- Also configures `~/.zshrc` if your login shell is zsh
+
+### ROS distro compatibility
+
+Tested on ROS 2 **Jazzy**, **Humble**, **Iron**, and **Rolling**. The tool reads `$ROS_DISTRO` at runtime — no distro-specific configuration is required. The only place a default (`jazzy`) is used is as a fallback when sourcing the ROS underlay inside `ws build`; set `ROS_DISTRO` in your shell to override.
+
+---
 
 ## Commands
 
 ### `ws build`
 
-Builds one or more colcon workspaces.
-
 ```
-Usage: ws build [--all] [-w|--ws <workspace>]... [-p|--packages <pkg>]...
+ws build [--all] [-w|--ws <workspace>]... [-p|--packages <pkg>]...
 ```
 
-- `-w / --ws` — workspace root (name relative to `$HOME`, or absolute path); repeatable
-- `-p / --packages` — package name to pass to `--packages-select`; repeatable
-- `--all` — build all detected workspaces
-- Build flags are configurable locally in `~/.config/crl_ws_manager/ws_config.bash`
-
-**Examples:**
+| Flag | Description |
+|------|-------------|
+| `-w / --ws` | Workspace root (name relative to `$HOME`, or absolute path); repeatable |
+| `-p / --packages` | Package name passed to `--packages-select`; repeatable |
+| `--all` | Build all detected workspaces |
+| `--clean` | Wipe package artifacts before building |
 
 ```bash
 ws build --all
@@ -56,66 +89,124 @@ ws build -w drv_ws -p my_package
 ws build -w ~/sw_ws -p pkg_a -p pkg_b
 ```
 
+Build flags are configured in `~/.config/crl_ws_manager/ws_config.bash`.
+
+---
+
+### `ws version`
+
+```bash
+ws --version
+ws version
+```
+
+Prints the installed version string from the `VERSION` file.
+
+---
+
+### `ws update`
+
+```bash
+ws update
+```
+
+Runs `git pull` in the repository root and re-runs `install.sh`.  
+Requires the tool to have been installed from a git clone.
+
+---
+
+### `ws doctor`
+
+```bash
+ws doctor
+```
+
+Checks all prerequisites and reports any problems:
+- `ws` and all subcommand binaries on `PATH`
+- Config file present
+- Shell functions file present
+- `ROS_DISTRO` set
+- `colcon` available
+- At least one workspace detected
+
+---
+
 ### `ws cd`
 
-Changes directory to a package's source tree (or install prefix).
+Changes directory to a package's source tree or install prefix.
 
 ```
-Usage: ws cd [--source|--install] [-s|--include-system] <package_name>
+ws cd [--source|--install] [-s|--include-system] <package_name>
 ```
 
-- `--source` (default) — navigate to the package source directory found in the workspace `src/`
-- `--install / -i` — navigate to the install prefix instead
-- `-s / --include-system` — hint for bash completion to also include system packages from `ros2 pkg list`
+| Flag | Description |
+|------|-------------|
+| `--source` | Navigate to source directory in workspace `src/` (default) |
+| `--install / -i` | Navigate to the install prefix |
+| `-s / --include-system` | Completion also includes system packages from `ros2 pkg list` |
 
-**Examples:**
+`roscd` is an alias for `ws cd`.
 
 ```bash
 ws cd liorf_slam_crl
 ws cd --install liorf_slam_crl
-ws cd -s <TAB>           # completes with local + system packages
+ws cd -s <TAB>      # completes with local + system packages
 ```
 
-`roscd` is an alias for `ws cd`.
+---
 
 ### `ws clean`
 
-Clean workspace artifacts (`build`, `install`, `log`) for selected packages or whole workspaces.
+```
+ws clean [--clean-all] [-w|--ws <workspace>]... [-p|--packages <pkg>]... [<pkg>...]
+```
 
-```
-Usage: ws clean [--clean-all] [-w|--ws <workspace>]... [-p|--packages <pkg>]... [<pkg>...]
-```
+Removes `build/`, `install/`, and `log/` artifacts for selected packages or entire workspaces.
+
+---
 
 ### `ws list`
 
-List detected workspaces and optionally packages with install status.
+```
+ws list [-p|--packages] [-w|--ws <workspace>] [--installed] [-q|--quiet]
+```
 
-```
-Usage: ws list [-p|--packages] [-w|--ws <workspace>] [--installed] [-q|--quiet]
-```
+Lists detected workspaces; with `-p` also shows packages and install status.
+
+---
 
 ### `ws open`
 
-Open a package path in the configured editor.
-
 ```
-Usage: ws open [--source|--install] <package_name>
+ws open [--source|--install] <package_name>
 ```
 
-Editor config keys in `~/.config/crl_ws_manager/ws_config.bash`:
+Opens the package path in the configured editor. Configure via:
 
-- `WS_EDITOR_PROGRAM` (default `code`)
-- `WS_EDITOR_ARGS` (default empty array)
+```bash
+ws config set-editor code --reuse-window
+```
+
+Config keys: `WS_EDITOR_PROGRAM` (default `code`), `WS_EDITOR_ARGS` (default empty).
+
+---
+
+### `ws which`
+
+```
+ws which <package_name> [launchfile]
+ws which <package_name> --launch <launchfile>
+```
+
+Shows source path, install prefix, and (optionally) launch file paths — including whether the installed launch file is a symlink and whether it resolves to the same file as the source.
+
+---
 
 ### `ws config`
 
-Manage local ws behavior configuration.
-
 ```
-Usage: ws config [show|path|init|edit|set-editor|set-build-program|set-build-subcommand|set-build-args|require-all]
+ws config [show|path|init|edit|set-editor|set-build-program|set-build-subcommand|set-build-args|require-all]
 ```
-
-Examples:
 
 ```bash
 ws config show
@@ -125,45 +216,44 @@ ws config set-build-args --symlink-install --continue-on-error
 ws config require-all true
 ```
 
-### `ws which`
+To configure fallback workspaces:
 
-Resolve package source/install paths and optionally launch file paths.
-
+```bash
+# In ~/.config/crl_ws_manager/ws_config.bash:
+WS_DEFAULT_WORKSPACES=(
+  "$HOME/ros2_ws"
+  "$HOME/dev_ws"
+)
 ```
-Usage: ws which <package_name> [launchfile]
-	ws which <package_name> --launch <launchfile>
-```
 
-When a launch file is requested, output includes:
+See `examples/ws_config.bash` for a fully annotated template.
 
-- source launch file path
-- installed launch file path
-- whether the installed launch file is a symlink
-- symlink target path (if symlinked)
-- whether installed launch points to the same file as source
+---
 
-### `ws-cd-resolve`
+### `ws-cd-resolve` (scripting)
 
-Lower-level executable called by the `ws cd` shell function. Outputs the resolved path to stdout. Useful for scripting.
+Lower-level executable used by the `ws cd` shell function. Prints the resolved path to stdout — useful in scripts.
 
 ```bash
 ws-cd-resolve my_package          # prints source dir
 ws-cd-resolve --install my_pkg    # prints install prefix
 ```
 
-## Bash Completion
+---
 
-Completion is registered automatically when `~/.config/crl_ws_manager/ws_manager.bash` is sourced.
+## Bash completion
 
-| Context | Completion |
+Registered automatically when `~/.config/crl_ws_manager/ws_manager.bash` is sourced.
+
+| Context | Completes |
 |---------|-----------|
 | `ws <TAB>` | `build`, `clean`, `cd`, `list`, `open`, `config`, `help` |
 | `ws build -p <TAB>` | Package names from active workspace `src/` directories |
-| `ws build -w <TAB>` | Smart workspace completion (detected names or path completion) |
+| `ws build -w <TAB>` | Detected workspace names or path completion |
 | `ws cd <TAB>` | Package names from active workspace `src/` directories |
 | `ws cd -s <TAB>` | Package names including system packages (`ros2 pkg list`) |
 | `ws open <TAB>` | Package names from active workspace `src/` directories |
 | `ws which <TAB>` | Package names from active workspace `src/` directories |
 | `ws which <pkg> <TAB>` | Installed launch files for `<pkg>` |
 
-Workspaces are detected dynamically from `ROS_PACKAGE_PATH` and `COLCON_PREFIX_PATH`. No paths are hardcoded.
+Workspaces are detected dynamically — no paths are hardcoded.
