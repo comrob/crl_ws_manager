@@ -4,6 +4,10 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 cd "$REPO_ROOT"
 
+CI_TMP_ROOT="${WS_CI_TMP_ROOT:-/tmp/ws_manager_ci_local}"
+export HOME="$CI_TMP_ROOT/home"
+export ROS_DISTRO="${ROS_DISTRO:-jazzy}"
+
 log() {
   printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"
 }
@@ -23,8 +27,12 @@ require_cmd python3
 require_cmd bats
 
 log "Preparing mock workspaces (matches CI)"
+rm -rf "$CI_TMP_ROOT"
+mkdir -p "$HOME"
 mkdir -p "$HOME/ros2_ws/src"
 mkdir -p "$HOME/dev_ws/src"
+log "Fixture root: $CI_TMP_ROOT"
+find "$CI_TMP_ROOT" -maxdepth 3 -type d | sort
 
 log "Checking shell syntax"
 bash -n bin/*.sh

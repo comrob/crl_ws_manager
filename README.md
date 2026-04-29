@@ -72,6 +72,12 @@ For quick local validation (same flow as CI):
 make ci-local
 ```
 
+`ci-local` runs in an isolated fixture root under `/tmp/ws_manager_ci_local` and uses a temporary `HOME` inside that root. You can override this root with:
+
+```bash
+WS_CI_TMP_ROOT=/tmp/my_ws_ci_fixture make ci-local
+```
+
 This runs:
 - shell syntax checks
 - install smoke

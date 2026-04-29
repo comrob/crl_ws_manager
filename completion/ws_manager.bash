@@ -2,15 +2,20 @@
 # ws_lib.sh lives at ../lib/ relative to this file (resolved through the symlink
 # to its real location in the repo).
 if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "bash" ]]; then
-  _ws_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" 2>/dev/null && pwd)"
+  _ws_source_resolved="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")"
+  _ws_lib_dir="$(cd "$(dirname "$_ws_source_resolved")/../lib" 2>/dev/null && pwd)"
+  _ws_cfg_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 else
   _ws_lib_dir="$HOME/.local/bin"
+  _ws_cfg_dir="$HOME/.config/crl_ws_manager"
 fi
 if [[ -f "$_ws_lib_dir/ws_lib.sh" ]]; then
   # shellcheck source=lib/ws_lib.sh
   source "$_ws_lib_dir/ws_lib.sh"
+elif [[ -f "$_ws_cfg_dir/ws_lib.sh" ]]; then
+  source "$_ws_cfg_dir/ws_lib.sh"
 fi
-unset _ws_lib_dir
+unset _ws_source_resolved _ws_lib_dir _ws_cfg_dir
 
 # Internal ws cd implementation.
 __ws_cd() {

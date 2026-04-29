@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ROS_DISTRO: jazzy
+      CI_TMP_ROOT: /tmp/ws_manager_ci
+      HOME: /tmp/ws_manager_ci/home
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,8 +33,15 @@ jobs:
 
       - name: Prepare mock workspaces
         run: |
+          rm -rf "$CI_TMP_ROOT"
+          mkdir -p "$HOME"
           mkdir -p "$HOME/ros2_ws/src"
           mkdir -p "$HOME/dev_ws/src"
+
+      - name: Show fixture layout
+        run: |
+          echo "Fixture root: $CI_TMP_ROOT"
+          find "$CI_TMP_ROOT" -maxdepth 3 -type d | sort
 
       - name: Check shell syntax
         run: |
