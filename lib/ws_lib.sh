@@ -405,8 +405,8 @@ ws_resolve_workspaces() {
       for ws in "${_candidate_ws[@]}"; do
         if ws_has_package "$ws" "$pkg"; then
           _ws_append_unique "$out_ws_name" "$ws"
-          if [[ " ${_srw_out_pkgs[ws]:-} " != *" $pkg "* ]]; then
-            _srw_out_pkgs[ws]="${_srw_out_pkgs[ws]:-} $pkg"
+          if [[ " ${_srw_out_pkgs["$ws"]:-} " != *" $pkg "* ]]; then
+            _srw_out_pkgs["$ws"]="${_srw_out_pkgs["$ws"]:-} $pkg"
           fi
           found_any=true
         fi

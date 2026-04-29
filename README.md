@@ -91,6 +91,21 @@ To run only the Bats tests:
 make test
 ```
 
+The Bats suite is split into one file per command under `tests/bats/`:
+
+| File | Command | What it covers |
+|------|---------|----------------|
+| `ws_manager_cmd.bats` | `ws` main dispatcher | `--version`, `cd --help`, shell wrapper delegation |
+| `ws_build_cmd.bats` | `ws build` | help output, duplicate package → both workspaces built |
+| `ws_clean_cmd.bats` | `ws clean` | help output, duplicate package → both workspaces cleaned |
+| `ws_cd_resolve_cmd.bats` | `ws cd` / `ws-cd-resolve` | source/install resolution, symlink source, duplicate package order |
+| `ws_list_cmd.bats` | `ws list` | quiet-mode symlink metadata, `--installed` filter |
+| `ws_open_cmd.bats` | `ws open` | symlink source path, not-installed error, launch artifact |
+| `ws_config_cmd.bats` | `ws config` | idempotent set-build-program, set-editor with args |
+| `ws_which_cmd.bats` | `ws which` | machine-mode symlink metadata, launch completion fallback |
+
+A shared helper (`tests/bats/test_helper.bash`) provides `make_pkg`, `make_pkg_at`, and `set_test_editor_echo` used across suites.
+
 ### ROS distro compatibility
 
 Tested on ROS 2 **Jazzy**, **Humble**, **Iron**, and **Rolling**. The tool reads `$ROS_DISTRO` at runtime — no distro-specific configuration is required. The only place a default (`jazzy`) is used is as a fallback when sourcing the ROS underlay inside `ws build`; set `ROS_DISTRO` in your shell to override.

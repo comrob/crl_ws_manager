@@ -256,5 +256,7 @@ for ws in "${workspaces[@]}"; do
     _fmt_package "$ws" "$pkg" "$is_last"
   done
 
-  [[ "$quiet" == false ]] && printf '\n'
+  if [[ "$quiet" == false ]]; then
+    printf '\n'
+  fi
 done
