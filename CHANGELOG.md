@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.2.1] - 2026-04-29
+
+### Changed
+- README restructured as a funnel: TL;DR → Installation → Commands → Developer section.
+- Added Table of Contents to README.
+- Moved CI/test instructions and ROS distro compatibility into a dedicated Developer section.
+- Added missing `git clone` step to installation instructions.
+- Completion note clarified: works without packages being sourced or installed.
+
 ## [0.2.0] - 2026-04-29
 
 ### Added

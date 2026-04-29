@@ -4,7 +4,37 @@
 [![Release](https://img.shields.io/github/v/release/comrob/crl_ws_manager)](https://github.com/comrob/crl_ws_manager/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **TL;DR** — A `ws` command for ROS 2 colcon workspaces. Build, clean, navigate, and inspect packages without typing long paths or remembering colcon flags.
+> A `ws` command for ROS 2 colcon workspaces. Build, clean, navigate, and inspect packages — without typing long paths or remembering colcon flags. Works with unsourced and uninstalled packages. No dependencies, pure bash.
+
+---
+
+## Table of Contents
+
+- [TL;DR](#tldr)
+- [Installation](#installation)
+- [Commands](#commands)
+  - [ws build](#ws-build)
+  - [ws cd](#ws-cd)
+  - [ws list](#ws-list)
+  - [ws open](#ws-open)
+  - [ws which](#ws-which)
+  - [ws clean](#ws-clean)
+  - [ws config](#ws-config)
+  - [ws doctor](#ws-doctor)
+  - [ws update](#ws-update)
+  - [ws version](#ws-version)
+  - [ws-cd-resolve (scripting)](#ws-cd-resolve-scripting)
+- [Bash Completion](#bash-completion)
+- [Developer Section](#developer-section)
+  - [Running Tests](#running-tests)
+  - [Local CI Run](#local-ci-run)
+  - [ROS Distro Compatibility](#ros-distro-compatibility)
+- [Citing This Work](#citing-this-work)
+- [License](#license)
+
+---
+
+## TL;DR
 
 ```bash
 ws build --all                    # build every detected workspace
@@ -24,33 +54,11 @@ Workspaces are **auto-detected** from `ROS_PACKAGE_PATH` / `COLCON_PREFIX_PATH`.
 
 ---
 
-## Repository layout
-
-```
-bin/               # installed executables (symlinked to ~/.local/bin)
-  ws_manager.sh    # dispatches ws subcommands
-  ws_build.sh      # wraps colcon build
-  ws_clean.sh      # removes build/install/log artifacts
-  ws_cd_resolve.sh # resolves package → directory (used by ws cd)
-  ws_list.sh       # lists workspaces and package status
-  ws_open.sh       # opens a package path in the configured editor
-  ws_config.sh     # manages local configuration
-  ws_which.sh      # resolves source/install/launch file paths
-lib/
-  ws_lib.sh        # shared helpers (sourced, not executed)
-completion/
-  ws_manager.bash  # shell functions, roscd alias, and bash completion
-examples/
-  ws_config.bash   # annotated configuration template
-VERSION            # current version string
-install.sh         # installer
-```
-
----
-
 ## Installation
 
 ```bash
+git clone https://github.com/comrob/crl_ws_manager.git
+cd crl_ws_manager
 ./install.sh
 source ~/.bashrc
 ```
@@ -65,55 +73,7 @@ source ~/.bashrc
 - Adds a source block to `~/.bashrc` to load shell functions on login
 - Also configures `~/.zshrc` if your login shell is zsh
 
-### Local test/CI run
-
-For quick local validation (same flow as CI):
-
-```bash
-make ci-local
-```
-
-`ci-local` runs in an isolated fixture root under `/tmp/ws_manager_ci_local` and uses a temporary `HOME` inside that root. You can override this root with:
-
-```bash
-WS_CI_TMP_ROOT=/tmp/my_ws_ci_fixture make ci-local
-```
-
-This runs:
-- shell syntax checks
-- install smoke
-- command smoke (`ws --version`, `ws build --help`, `ws-cd-resolve --help`, `ws doctor`)
-- Bats tests
-- uninstall smoke
-
-To run only the Bats tests:
-
-```bash
-make test
-```
-
-The Bats suite is split into one file per command under `tests/bats/`:
-
-| File | Command | What it covers |
-|------|---------|----------------|
-| `ws_manager_cmd.bats` | `ws` main dispatcher | `--version`, `cd --help`, shell wrapper delegation |
-| `ws_build_cmd.bats` | `ws build` | help output, duplicate package → both workspaces built |
-| `ws_clean_cmd.bats` | `ws clean` | help output, duplicate package → both workspaces cleaned |
-| `ws_cd_resolve_cmd.bats` | `ws cd` / `ws-cd-resolve` | source/install resolution, symlink source, duplicate package order |
-| `ws_list_cmd.bats` | `ws list` | quiet-mode symlink metadata, `--installed` filter |
-| `ws_open_cmd.bats` | `ws open` | symlink source path, not-installed error, launch artifact |
-| `ws_config_cmd.bats` | `ws config` | idempotent set-build-program, set-editor with args |
-| `ws_which_cmd.bats` | `ws which` | machine-mode symlink metadata, launch completion fallback |
-
-A shared helper (`tests/bats/test_helper.bash`) provides `make_pkg`, `make_pkg_at`, and `set_test_editor_echo` used across suites.
-
-### ROS distro compatibility
-
-Works with any installed ROS 2 distro (**Humble**, **Iron**, **Jazzy**, **Kilted**, **Rolling**, etc.).
-The tool reads `$ROS_DISTRO` at runtime — no distro-specific configuration is required or assumed.
-`ws build` sources `/opt/ros/$ROS_DISTRO/setup.bash` when that file exists and `ROS_DISTRO` is set;
-all other commands (`ws cd`, `ws list`, `ws which`, `ws open`, `ws config`) work without any ROS
-environment sourced.
+To uninstall, run `./install.sh --uninstall`.
 
 ---
 
@@ -143,44 +103,6 @@ Build flags are configured in `~/.config/crl_ws_manager/ws_config.bash`.
 
 ---
 
-### `ws version`
-
-```bash
-ws --version
-ws version
-```
-
-Prints the installed version string from the `VERSION` file.
-
----
-
-### `ws update`
-
-```bash
-ws update
-```
-
-Runs `git pull` in the repository root and re-runs `install.sh`.  
-Requires the tool to have been installed from a git clone.
-
----
-
-### `ws doctor`
-
-```bash
-ws doctor
-```
-
-Checks all prerequisites and reports any problems:
-- `ws` and all subcommand binaries on `PATH`
-- Config file present
-- Shell functions file present
-- `ROS_DISTRO` set
-- `colcon` available
-- At least one workspace detected
-
----
-
 ### `ws cd`
 
 Changes directory to a package's source tree or install prefix.
@@ -202,16 +124,6 @@ ws cd liorf_slam_crl
 ws cd --install liorf_slam_crl
 ws cd -s <TAB>      # completes with local + system packages
 ```
-
----
-
-### `ws clean`
-
-```
-ws clean [--clean-all] [-w|--ws <workspace>]... [-p|--packages <pkg>]... [<pkg>...]
-```
-
-Removes `build/`, `install/`, and `log/` artifacts for selected packages or entire workspaces.
 
 ---
 
@@ -252,6 +164,16 @@ Shows source path, install prefix, and (optionally) launch file paths — includ
 
 ---
 
+### `ws clean`
+
+```
+ws clean [--clean-all] [-w|--ws <workspace>]... [-p|--packages <pkg>]... [<pkg>...]
+```
+
+Removes `build/`, `install/`, and `log/` artifacts for selected packages or entire workspaces.
+
+---
+
 ### `ws config`
 
 ```
@@ -280,6 +202,44 @@ See `examples/ws_config.bash` for a fully annotated template.
 
 ---
 
+### `ws doctor`
+
+```bash
+ws doctor
+```
+
+Checks all prerequisites and reports any problems:
+- `ws` and all subcommand binaries on `PATH`
+- Config file present
+- Shell functions file present
+- `ROS_DISTRO` set
+- `colcon` available
+- At least one workspace detected
+
+---
+
+### `ws update`
+
+```bash
+ws update
+```
+
+Runs `git pull` in the repository root and re-runs `install.sh`.  
+Requires the tool to have been installed from a git clone.
+
+---
+
+### `ws version`
+
+```bash
+ws --version
+ws version
+```
+
+Prints the installed version string from the `VERSION` file.
+
+---
+
 ### `ws-cd-resolve` (scripting)
 
 Lower-level executable used by the `ws cd` shell function. Prints the resolved path to stdout — useful in scripts.
@@ -291,7 +251,7 @@ ws-cd-resolve --install my_pkg    # prints install prefix
 
 ---
 
-## Bash completion
+## Bash Completion
 
 Registered automatically when `~/.config/crl_ws_manager/ws_manager.bash` is sourced.
 
@@ -306,11 +266,67 @@ Registered automatically when `~/.config/crl_ws_manager/ws_manager.bash` is sour
 | `ws which <TAB>` | Package names from active workspace `src/` directories |
 | `ws which <pkg> <TAB>` | Installed launch files for `<pkg>` |
 
-Workspaces are detected dynamically — no paths are hardcoded.
+Workspaces are detected dynamically — no paths are hardcoded. Completion does **not** require the workspace or package to be sourced or installed.
 
 ---
 
-## Citing this work
+## Developer Section
+
+### Running Tests
+
+To run the full Bats test suite:
+
+```bash
+make test
+```
+
+The Bats suite is split into one file per command under `tests/bats/`:
+
+| File | Command | What it covers |
+|------|---------|----------------|
+| `ws_manager_cmd.bats` | `ws` main dispatcher | `--version`, `cd --help`, shell wrapper delegation |
+| `ws_build_cmd.bats` | `ws build` | help output, duplicate package → both workspaces built |
+| `ws_clean_cmd.bats` | `ws clean` | help output, duplicate package → both workspaces cleaned |
+| `ws_cd_resolve_cmd.bats` | `ws cd` / `ws-cd-resolve` | source/install resolution, symlink source, duplicate package order |
+| `ws_list_cmd.bats` | `ws list` | quiet-mode symlink metadata, `--installed` filter |
+| `ws_open_cmd.bats` | `ws open` | symlink source path, not-installed error, launch artifact |
+| `ws_config_cmd.bats` | `ws config` | idempotent set-build-program, set-editor with args |
+| `ws_which_cmd.bats` | `ws which` | machine-mode symlink metadata, launch completion fallback |
+
+A shared helper (`tests/bats/test_helper.bash`) provides `make_pkg`, `make_pkg_at`, and `set_test_editor_echo` used across suites.
+
+### Local CI Run
+
+For quick local validation (same flow as CI):
+
+```bash
+make ci-local
+```
+
+`ci-local` runs in an isolated fixture root under `/tmp/ws_manager_ci_local` and uses a temporary `HOME` inside that root. You can override this root with:
+
+```bash
+WS_CI_TMP_ROOT=/tmp/my_ws_ci_fixture make ci-local
+```
+
+This runs:
+- shell syntax checks
+- install smoke
+- command smoke (`ws --version`, `ws build --help`, `ws-cd-resolve --help`, `ws doctor`)
+- Bats tests
+- uninstall smoke
+
+### ROS Distro Compatibility
+
+Works with any installed ROS 2 distro (**Humble**, **Iron**, **Jazzy**, **Kilted**, **Rolling**, etc.).
+The tool reads `$ROS_DISTRO` at runtime — no distro-specific configuration is required or assumed.
+`ws build` sources `/opt/ros/$ROS_DISTRO/setup.bash` when that file exists and `ROS_DISTRO` is set;
+all other commands (`ws cd`, `ws list`, `ws which`, `ws open`, `ws config`) work without any ROS
+environment sourced.
+
+---
+
+## Citing This Work
 
 If you use `ws_manager` in your research, please cite it:
 
