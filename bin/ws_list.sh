@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# shellcheck source=../lib/ws_lib.sh
+# shellcheck source=lib/ws_lib.sh
 source "$SCRIPT_DIR/../lib/ws_lib.sh"
 
 # ---------------------------------------------------------------------------
@@ -210,14 +210,12 @@ fi
 # Section 1: Workspace summary (always shown).
 # ---------------------------------------------------------------------------
 if [[ "$quiet" == false && "$show_packages" == true ]]; then
-  printf "${_C_BOLD}Workspaces${_C_RESET}\n"
+  printf '%b\n' "${_C_BOLD}Workspaces${_C_RESET}"
 fi
 
-declare -A ws_sourced_map=()
 for ws in "${workspaces[@]}"; do
   sourced=false
   ws_is_workspace_sourced "$ws" && sourced=true
-  ws_sourced_map[$ws]="$sourced"
   _fmt_workspace "$ws" "$sourced"
 done
 
@@ -247,7 +245,7 @@ for ws in "${workspaces[@]}"; do
 
   if [[ "$quiet" == false ]]; then
     short_ws="${ws/#$HOME/\~}"
-    printf "${_C_BOLD}%s${_C_RESET}\n" "$short_ws"
+    printf '%b\n' "${_C_BOLD}${short_ws}${_C_RESET}"
   fi
 
   total=${#local_packages[@]}

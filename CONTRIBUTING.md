@@ -33,6 +33,6 @@ Open a GitHub issue. Please include:
 
 ## Release process
 
-1. Update `VERSION`.
+1. Update `VERSION` and `CHANGELOG.md`.
 2. Tag: `git tag -a v$(cat VERSION) -m "Release $(cat VERSION)"`.
 3. Push tag.

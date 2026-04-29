@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# shellcheck source=../lib/ws_lib.sh
+# shellcheck source=lib/ws_lib.sh
 source "$SCRIPT_DIR/../lib/ws_lib.sh"
 
 print_usage() {

@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# shellcheck source=../lib/ws_lib.sh
+# shellcheck source=lib/ws_lib.sh
 source "$SCRIPT_DIR/../lib/ws_lib.sh"
 
 print_usage() {
@@ -98,7 +98,7 @@ do_clean_workspace() {
     for dir in build install log; do
       if [[ -d "$workspace/$dir" ]]; then
         echo "  Removing $workspace/$dir"
-        rm -rf "$workspace/$dir"
+        rm -rf "${workspace:?}/$dir"
       fi
     done
   else
@@ -108,7 +108,7 @@ do_clean_workspace() {
       for dir in build install log; do
         if [[ -d "$workspace/$dir/$pkg" ]]; then
           echo "  Removing $workspace/$dir/$pkg"
-          rm -rf "$workspace/$dir/$pkg"
+          rm -rf "${workspace:?}/$dir/$pkg"
           found_any=true
         fi
       done
@@ -124,6 +124,7 @@ do_clean_workspace() {
 }
 
 declare -A resolved_ws_pkgs=()
+workspaces=()
 ws_resolve_workspaces selected_workspaces selected_packages workspaces resolved_ws_pkgs \
   || exit 1
 

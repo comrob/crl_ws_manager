@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# shellcheck source=../lib/ws_lib.sh
+# shellcheck source=lib/ws_lib.sh
 source "$SCRIPT_DIR/../lib/ws_lib.sh"
 
 CLEAN_SCRIPT=""
@@ -140,11 +140,12 @@ if [[ "$clean_first" == true && -z "$CLEAN_SCRIPT" ]]; then
 fi
 
 declare -A resolved_ws_pkgs=()
+workspaces=()
 ws_resolve_workspaces selected_workspaces selected_packages workspaces resolved_ws_pkgs \
   || exit 1
 
 if [[ -f "/opt/ros/${ROS_DISTRO:-jazzy}/setup.bash" ]]; then
-  # shellcheck disable=SC1091
+  # shellcheck disable=SC1090,SC1091
   source "/opt/ros/${ROS_DISTRO:-jazzy}/setup.bash"
 fi
 

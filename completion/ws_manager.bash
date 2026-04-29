@@ -7,7 +7,7 @@ else
   _ws_lib_dir="$HOME/.local/bin"
 fi
 if [[ -f "$_ws_lib_dir/ws_lib.sh" ]]; then
-  # shellcheck source=../lib/ws_lib.sh
+  # shellcheck source=lib/ws_lib.sh
   source "$_ws_lib_dir/ws_lib.sh"
 fi
 unset _ws_lib_dir
@@ -40,6 +40,21 @@ __ws_cd() {
   cd "$target_dir" || return 1
 }
 
+# Resolve the executable used for non-cd ws subcommands.
+__ws_main_cmd() {
+  local ws_cmd
+  ws_cmd="$(type -P ws 2>/dev/null || true)"
+  if [[ -n "$ws_cmd" && -x "$ws_cmd" ]]; then
+    printf '%s' "$ws_cmd"
+    return 0
+  fi
+  if [[ -x "$HOME/.local/bin/ws" ]]; then
+    printf '%s' "$HOME/.local/bin/ws"
+    return 0
+  fi
+  return 1
+}
+
 # Unified workspace manager wrapper
 ws() {
   local cmd="${1:-}"
@@ -54,27 +69,33 @@ ws() {
   fi
 
   shift
+  local ws_cmd
+  ws_cmd="$(__ws_main_cmd)" || {
+    echo "Error: ws command executable not found on PATH. Run ./install.sh and source your shell rc file."
+    return 1
+  }
+
   case "$cmd" in
     cd)
       __ws_cd "$@"
       ;;
     build)
-      "$HOME/.local/bin/ws" build "$@"
+      "$ws_cmd" build "$@"
       ;;
     clean)
-      "$HOME/.local/bin/ws" clean "$@"
+      "$ws_cmd" clean "$@"
       ;;
     list)
-      "$HOME/.local/bin/ws" list "$@"
+      "$ws_cmd" list "$@"
       ;;
     open)
-      "$HOME/.local/bin/ws" open "$@"
+      "$ws_cmd" open "$@"
       ;;
     config)
-      "$HOME/.local/bin/ws" config "$@"
+      "$ws_cmd" config "$@"
       ;;
     which)
-      "$HOME/.local/bin/ws" which "$@"
+      "$ws_cmd" which "$@"
       ;;
     update|version|--version|doctor)
       command ws "$cmd" "$@"

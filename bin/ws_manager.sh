@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# shellcheck source=../lib/ws_lib.sh
+# shellcheck source=lib/ws_lib.sh
 source "$SCRIPT_DIR/../lib/ws_lib.sh"
 
 # ---------------------------------------------------------------------------
@@ -54,6 +54,9 @@ case "$cmd" in
     exit 0
     ;;
   cd)
+    if ws_is_help_token "${1:-}"; then
+      _ws_dispatch "cd_resolve" --help
+    fi
     echo "Error: 'ws cd' must run as a shell function to change your current directory." >&2
     echo "Run ./install.sh, then source ~/.bashrc and use: ws cd <package_name>" >&2
     exit 2
@@ -93,7 +96,7 @@ case "$cmd" in
     if command -v ws >/dev/null 2>&1; then
       _check "ws binary on PATH" ok "$(command -v ws)"
     else
-      _check "ws binary on PATH" fail "~/.local/bin not on PATH — run: source ~/.bashrc"
+      _check "ws binary on PATH" fail "$HOME/.local/bin not on PATH — run: source ~/.bashrc"
     fi
 
     # 2. Subcommand binaries present

@@ -8,7 +8,7 @@
 #   2. Package-driven lookup: scan env-detected workspaces (+ default fallbacks)
 #      for workspaces that actually contain the requested packages.
 #   3. Environment-detected workspaces from ROS_PACKAGE_PATH / COLCON_PREFIX_PATH.
-#   4. Hardcoded defaults: ~/sw_ws ~/drv_ws.
+#   4. Configured fallbacks from WS_DEFAULT_WORKSPACES.
 #
 # Only levels 3 and 4 are used when no packages are requested (build-all /
 # clean-all scenarios).
@@ -18,11 +18,11 @@
 #   Resolve the local configuration locations for this tool.
 # ---------------------------------------------------------------------------
 ws_config_dir() {
-  printf '%s' "${CRL_WS_CONFIG_DIR:-$HOME/.config/crl_ws_manager}"
+  printf '%s' "${WS_CONFIG_DIR:-${CRL_WS_CONFIG_DIR:-$HOME/.config/crl_ws_manager}}"
 }
 
 ws_legacy_config_dir() {
-  printf '%s' "${CRL_WS_LEGACY_CONFIG_DIR:-$HOME/.config/crl_husky_deployment}"
+  printf '%s' "${WS_LEGACY_CONFIG_DIR:-${CRL_WS_LEGACY_CONFIG_DIR:-$HOME/.config/crl_husky_deployment}}"
 }
 
 ws_config_file() {
@@ -46,7 +46,7 @@ ws_lib_file() {
 #   Print the shared top-level help text for the ws command.
 # ---------------------------------------------------------------------------
 ws_print_main_help() {
-  echo "CRL ROS workspace manager"
+  echo "ROS workspace manager"
   echo "Run 'ws --help' to see available commands."
   echo ""
   echo "Usage: ws [build | clean | cd | list | open | config] <args>"
@@ -137,7 +137,7 @@ ws_init_config_file_if_missing() {
   fi
 
   cat > "$cfg_file" <<'EOF'
-# Local configuration for the CRL ROS workspace manager.
+# Local configuration for the ROS workspace manager.
 #
 # This file is sourced by ws_* scripts, so use valid Bash syntax.
 # CLI arguments still take precedence over these defaults.
@@ -173,6 +173,40 @@ ws_append_config_line() {
   local line="$1"
   ws_init_config_file_if_missing
   printf '%s\n' "$line" >> "$(ws_config_file)"
+}
+
+# ---------------------------------------------------------------------------
+# ws_upsert_config_assignment key assignment-line
+#   Replace (or append) a top-level KEY=... or KEY=(...) assignment in the
+#   local config file so repeated ws config set-* commands stay idempotent.
+# ---------------------------------------------------------------------------
+ws_upsert_config_assignment() {
+  local key="$1"
+  local assignment="$2"
+  local cfg tmp
+
+  ws_init_config_file_if_missing
+  cfg="$(ws_config_file)"
+  tmp="$(mktemp)"
+
+  awk -v key="$key" -v assignment="$assignment" '
+    BEGIN { replaced = 0 }
+    $0 ~ "^" key "=" || $0 ~ "^" key "\\(" {
+      if (replaced == 0) {
+        print assignment
+        replaced = 1
+      }
+      next
+    }
+    { print }
+    END {
+      if (replaced == 0) {
+        print assignment
+      }
+    }
+  ' "$cfg" > "$tmp"
+
+  mv "$tmp" "$cfg"
 }
 
 # ---------------------------------------------------------------------------
@@ -371,8 +405,8 @@ ws_resolve_workspaces() {
       for ws in "${_candidate_ws[@]}"; do
         if ws_has_package "$ws" "$pkg"; then
           _ws_append_unique "$out_ws_name" "$ws"
-          if [[ " ${_srw_out_pkgs[$ws]:-} " != *" $pkg "* ]]; then
-            _srw_out_pkgs[$ws]="${_srw_out_pkgs[$ws]:-} $pkg"
+          if [[ " ${_srw_out_pkgs[ws]:-} " != *" $pkg "* ]]; then
+            _srw_out_pkgs[ws]="${_srw_out_pkgs[ws]:-} $pkg"
           fi
           found_any=true
         fi
@@ -749,10 +783,19 @@ ws_list_installed_config_basenames() {
     if [[ -d "$share_dir" ]]; then
       candidate_dirs=("$share_dir/config" "$share_dir/params")
       local _found=false
+      local -a _cfg_basenames=()
       for dir in "${candidate_dirs[@]}"; do
-        [[ -d "$dir" ]] && _found=true && find "$dir" \( -type f -o -type l \) -printf '%f\n' 2>/dev/null
-      done | sort -u
-      [[ "$_found" == true ]] && return 0
+        if [[ -d "$dir" ]]; then
+          _found=true
+          while IFS= read -r _base; do
+            [[ -n "$_base" ]] && _cfg_basenames+=("$_base")
+          done < <(find "$dir" \( -type f -o -type l \) -printf '%f\n' 2>/dev/null)
+        fi
+      done
+      if [[ "$_found" == true ]]; then
+        printf '%s\n' "${_cfg_basenames[@]}" | sort -u
+        return 0
+      fi
     fi
   fi
 
@@ -782,15 +825,21 @@ ws_resolve_package_paths() {
 
   _rpp_src_ref="not-found"
   _rpp_inst_ref="not-installed"
+  # shellcheck disable=SC2034
   WS_RESOLVE_SOURCE_IS_SYMLINK="no"
+  # shellcheck disable=SC2034
   WS_RESOLVE_SOURCE_SYMLINK_TARGET="n/a"
+  # shellcheck disable=SC2034
   WS_RESOLVE_INSTALL_IS_SYMLINK="no"
+  # shellcheck disable=SC2034
   WS_RESOLVE_INSTALL_SYMLINK_TARGET="n/a"
 
   if resolved_source=$(ws_package_source_dir_any "$package_name" 2>/dev/null); then
     _rpp_src_ref="$resolved_source"
     if [[ -L "$resolved_source" ]]; then
+      # shellcheck disable=SC2034
       WS_RESOLVE_SOURCE_IS_SYMLINK="yes"
+      # shellcheck disable=SC2034
       WS_RESOLVE_SOURCE_SYMLINK_TARGET=$(readlink -f "$resolved_source" 2>/dev/null \
         || readlink "$resolved_source" 2>/dev/null || echo "n/a")
     fi
@@ -799,7 +848,9 @@ ws_resolve_package_paths() {
   if resolved_install=$(ws_package_install_prefix "$package_name" 2>/dev/null); then
     _rpp_inst_ref="$resolved_install"
     if [[ -L "$resolved_install" ]]; then
+      # shellcheck disable=SC2034
       WS_RESOLVE_INSTALL_IS_SYMLINK="yes"
+      # shellcheck disable=SC2034
       WS_RESOLVE_INSTALL_SYMLINK_TARGET=$(readlink -f "$resolved_install" 2>/dev/null \
         || readlink "$resolved_install" 2>/dev/null || echo "n/a")
     fi

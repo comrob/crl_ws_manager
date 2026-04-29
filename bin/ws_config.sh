@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# shellcheck source=../lib/ws_lib.sh
+# shellcheck source=lib/ws_lib.sh
 source "$SCRIPT_DIR/../lib/ws_lib.sh"
 
 print_usage() {
@@ -67,7 +67,7 @@ case "$cmd" in
     show_config
     ;;
   path)
-    echo "$(ws_config_file)"
+    ws_config_file
     ;;
   init)
     ws_init_config_file_if_missing
@@ -89,8 +89,8 @@ case "$cmd" in
     fi
     program="$1"
     shift
-    ws_append_config_line "WS_EDITOR_PROGRAM=$(printf '%q' "$program")"
-    ws_append_config_line "WS_EDITOR_ARGS=( $(array_to_shell_list "$@") )"
+    ws_upsert_config_assignment "WS_EDITOR_PROGRAM" "WS_EDITOR_PROGRAM=$(printf '%q' "$program")"
+    ws_upsert_config_assignment "WS_EDITOR_ARGS" "WS_EDITOR_ARGS=( $(array_to_shell_list "$@") )"
     echo "Updated editor in $(ws_config_file)"
     ;;
   set-build-program)
@@ -98,7 +98,7 @@ case "$cmd" in
       echo "Error: set-build-program requires <program>" >&2
       exit 1
     fi
-    ws_append_config_line "WS_BUILD_PROGRAM=$(printf '%q' "$1")"
+    ws_upsert_config_assignment "WS_BUILD_PROGRAM" "WS_BUILD_PROGRAM=$(printf '%q' "$1")"
     echo "Updated build program in $(ws_config_file)"
     ;;
   set-build-subcommand)
@@ -106,7 +106,7 @@ case "$cmd" in
       echo "Error: set-build-subcommand requires <subcommand>" >&2
       exit 1
     fi
-    ws_append_config_line "WS_BUILD_SUBCOMMAND=$(printf '%q' "$1")"
+    ws_upsert_config_assignment "WS_BUILD_SUBCOMMAND" "WS_BUILD_SUBCOMMAND=$(printf '%q' "$1")"
     echo "Updated build subcommand in $(ws_config_file)"
     ;;
   set-build-args)
@@ -114,7 +114,7 @@ case "$cmd" in
       echo "Error: set-build-args requires at least one argument." >&2
       exit 1
     fi
-    ws_append_config_line "WS_BUILD_DEFAULT_ARGS=( $(array_to_shell_list "$@") )"
+    ws_upsert_config_assignment "WS_BUILD_DEFAULT_ARGS" "WS_BUILD_DEFAULT_ARGS=( $(array_to_shell_list "$@") )"
     echo "Updated build args in $(ws_config_file)"
     ;;
   require-all)
@@ -126,7 +126,7 @@ case "$cmd" in
       echo "Error: require-all expects true or false." >&2
       exit 1
     fi
-    ws_append_config_line "WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=$1"
+    ws_upsert_config_assignment "WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD" "WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=$1"
     echo "Updated require-all in $(ws_config_file)"
     ;;
   *)
