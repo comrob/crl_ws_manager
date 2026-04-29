@@ -10,7 +10,7 @@ COMMANDS    := ws ws-build ws-clean ws-cd-resolve ws-list ws-open ws-config ws-w
 SOURCE_BEGIN := \# >>> ws manager source >>>
 SOURCE_END   := \# <<< ws manager source <<<
 
-.PHONY: install uninstall purge
+.PHONY: install uninstall purge test ci-local
 
 install:
 	@bash install.sh
@@ -70,3 +70,11 @@ purge: uninstall
 	@if [[ -d "$(CONFIG_DIR)" ]] && [[ -z "$$(ls -A "$(CONFIG_DIR)" 2>/dev/null)" ]]; then \
 	  rmdir "$(CONFIG_DIR)" && echo "  Removed empty directory $(CONFIG_DIR)"; \
 	fi
+
+# Run bats test suite only.
+test:
+	@bats tests/bats/*.bats
+
+# Run a local equivalent of the CI validate job.
+ci-local:
+	@./scripts/run_ci_local.sh

@@ -64,6 +64,27 @@ source ~/.bashrc
 - Adds a source block to `~/.bashrc` to load shell functions on login
 - Also configures `~/.zshrc` if your login shell is zsh
 
+### Local test/CI run
+
+For quick local validation (same flow as CI):
+
+```bash
+make ci-local
+```
+
+This runs:
+- shell syntax checks
+- install smoke
+- command smoke (`ws --version`, `ws build --help`, `ws-cd-resolve --help`, `ws doctor`)
+- Bats tests
+- uninstall smoke
+
+To run only the Bats tests:
+
+```bash
+make test
+```
+
 ### ROS distro compatibility
 
 Tested on ROS 2 **Jazzy**, **Humble**, **Iron**, and **Rolling**. The tool reads `$ROS_DISTRO` at runtime — no distro-specific configuration is required. The only place a default (`jazzy`) is used is as a fallback when sourcing the ROS underlay inside `ws build`; set `ROS_DISTRO` in your shell to override.
