@@ -104,7 +104,7 @@ ws_load_config() {
     WS_EDITOR_ARGS=()
   fi
   if ! declare -p WS_DEFAULT_WORKSPACES >/dev/null 2>&1; then
-    WS_DEFAULT_WORKSPACES=("$HOME/sw_ws" "$HOME/drv_ws")
+    WS_DEFAULT_WORKSPACES=("$HOME/ros2_ws" "$HOME/dev_ws")
   fi
 
   local cfg_file=""
@@ -155,8 +155,8 @@ WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=true
 # environment (ROS_PACKAGE_PATH / COLCON_PREFIX_PATH).  Add or remove paths
 # to match your setup.
 WS_DEFAULT_WORKSPACES=(
-  "$HOME/sw_ws"
-  "$HOME/drv_ws"
+  "$HOME/ros2_ws"
+  "$HOME/dev_ws"
 )
 
 # Editor command used by: ws open <package>
@@ -283,7 +283,7 @@ _ws_append_unique() {
 #   Populate the named array with workspace roots detected from the current
 #   ROS environment (ROS_PACKAGE_PATH and COLCON_PREFIX_PATH).  Duplicate
 #   entries are suppressed.  WS_DEFAULT_WORKSPACES entries (configurable via
-#   ws_config.bash; defaults to ~/sw_ws ~/drv_ws) are appended as fallbacks.
+#   ws_config.bash; defaults to ~/ros2_ws ~/dev_ws) are appended as fallbacks.
 # ---------------------------------------------------------------------------
 ws_detect_from_env() {
   local out_name="$1"

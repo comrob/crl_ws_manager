@@ -77,7 +77,9 @@ case "$cmd" in
     exec "$repo_root/install.sh"
     ;;
   doctor)
-    ok=true
+    ok=true       # tracks hard failures (broken install)
+    warn=false    # tracks soft warnings (missing optional deps)
+
     _check() {
       local label="$1" result="$2" detail="${3:-}"
       if [[ "$result" == "ok" ]]; then
@@ -87,6 +89,12 @@ case "$cmd" in
         [[ -n "$detail" ]] && printf '         %s\n' "$detail"
         ok=false
       fi
+    }
+    _warn() {
+      local label="$1" detail="${2:-}"
+      printf '  [WARN] %s\n' "$label"
+      [[ -n "$detail" ]] && printf '         %s\n' "$detail"
+      warn=true
     }
 
     echo "ws_manager doctor"
@@ -124,18 +132,18 @@ case "$cmd" in
       _check "Shell functions file present" fail "run: make install"
     fi
 
-    # 5. ROS environment
+    # 5. ROS environment  (warning only — ws cd/list/which work without it)
     if [[ -n "${ROS_DISTRO:-}" ]]; then
       _check "ROS_DISTRO set" ok "$ROS_DISTRO"
     else
-      _check "ROS_DISTRO set" fail "source /opt/ros/<distro>/setup.bash"
+      _warn "ROS_DISTRO not set" "ws build requires it; run: source /opt/ros/<distro>/setup.bash"
     fi
 
-    # 6. colcon available
+    # 6. colcon available  (warning only — ws cd/list/open/which/config work without it)
     if command -v colcon >/dev/null 2>&1; then
       _check "colcon available" ok "$(command -v colcon)"
     else
-      _check "colcon available" fail "install: pip install colcon-common-extensions"
+      _warn "colcon not found" "required for ws build; install: pip install colcon-common-extensions"
     fi
 
     # 7. Detected workspaces
@@ -145,12 +153,14 @@ case "$cmd" in
     if [[ ${#_ws_list[@]} -gt 0 ]]; then
       _check "Workspaces detected (${#_ws_list[@]})" ok "${_ws_list[*]}"
     else
-      _check "Workspaces detected" fail "source a ROS workspace or set WS_DEFAULT_WORKSPACES in ws_config.bash"
+      _warn "No workspaces detected" "source a workspace or set WS_DEFAULT_WORKSPACES in ws_config.bash"
     fi
 
     echo ""
-    if [[ "$ok" == true ]]; then
+    if [[ "$ok" == true && "$warn" == false ]]; then
       echo "All checks passed."
+    elif [[ "$ok" == true ]]; then
+      echo "Install OK — some optional components are missing (see warnings above)."
     else
       echo "Some checks failed — see details above."
       exit 1

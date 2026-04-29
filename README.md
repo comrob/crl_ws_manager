@@ -2,21 +2,22 @@
 
 [![CI](https://github.com/comrob/crl_ws_manager/actions/workflows/ci.yml/badge.svg)](https://github.com/comrob/crl_ws_manager/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/comrob/crl_ws_manager)](https://github.com/comrob/crl_ws_manager/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **TL;DR** — A `ws` command for ROS 2 colcon workspaces. Build, clean, navigate, and inspect packages without typing long paths or remembering colcon flags.
 
 ```bash
-ws build --all                   # build every detected workspace
-ws build -w drv_ws -p my_pkg     # build one package in a specific workspace
-ws cd liorf_slam_crl             # jump to a package's source directory
-ws cd --install liorf_slam_crl   # jump to its install prefix instead
-ws clean -w drv_ws -p my_pkg     # wipe build/install/log for a package
-ws list -p                       # list all workspaces + packages + install status
-ws open my_pkg                   # open package in VS Code (configurable)
-ws which my_pkg my_launch.py     # show source & install paths for a launch file
+ws build --all                    # build every detected workspace
+ws build -w dev_ws -p my_pkg      # build one package in a specific workspace
+ws cd my_package                  # jump to a package's source directory
+ws cd --install my_package        # jump to its install prefix instead
+ws clean -w dev_ws -p my_pkg      # wipe build/install/log for a package
+ws list -p                        # list all workspaces + packages + install status
+ws open my_pkg                    # open package in VS Code (configurable)
+ws which my_pkg my_launch.py      # show source & install paths for a launch file
 ws config set-build-args --symlink-install --continue-on-error
-ws doctor                        # diagnose PATH, ROS env, colcon, config
-ws update                        # git pull + reinstall in one command
+ws doctor                         # diagnose PATH, ROS env, colcon, config
+ws update                         # git pull + reinstall in one command
 ```
 
 Workspaces are **auto-detected** from `ROS_PACKAGE_PATH` / `COLCON_PREFIX_PATH`. Fallback paths are configurable via `WS_DEFAULT_WORKSPACES` in `ws_config.bash`. Tab completion works everywhere.
@@ -108,7 +109,11 @@ A shared helper (`tests/bats/test_helper.bash`) provides `make_pkg`, `make_pkg_a
 
 ### ROS distro compatibility
 
-Tested on ROS 2 **Jazzy**, **Humble**, **Iron**, and **Rolling**. The tool reads `$ROS_DISTRO` at runtime — no distro-specific configuration is required. The only place a default (`jazzy`) is used is as a fallback when sourcing the ROS underlay inside `ws build`; set `ROS_DISTRO` in your shell to override.
+Works with any installed ROS 2 distro (**Humble**, **Iron**, **Jazzy**, **Kilted**, **Rolling**, etc.).
+The tool reads `$ROS_DISTRO` at runtime — no distro-specific configuration is required or assumed.
+`ws build` sources `/opt/ros/$ROS_DISTRO/setup.bash` when that file exists and `ROS_DISTRO` is set;
+all other commands (`ws cd`, `ws list`, `ws which`, `ws open`, `ws config`) work without any ROS
+environment sourced.
 
 ---
 
@@ -129,9 +134,9 @@ ws build [--all] [-w|--ws <workspace>]... [-p|--packages <pkg>]...
 
 ```bash
 ws build --all
-ws build -w drv_ws
-ws build -w drv_ws -p my_package
-ws build -w ~/sw_ws -p pkg_a -p pkg_b
+ws build -w ros2_ws
+ws build -w ros2_ws -p my_package
+ws build -w ~/ros2_ws -p pkg_a -p pkg_b
 ```
 
 Build flags are configured in `~/.config/crl_ws_manager/ws_config.bash`.
@@ -302,3 +307,28 @@ Registered automatically when `~/.config/crl_ws_manager/ws_manager.bash` is sour
 | `ws which <pkg> <TAB>` | Installed launch files for `<pkg>` |
 
 Workspaces are detected dynamically — no paths are hardcoded.
+
+---
+
+## Citing this work
+
+If you use `ws_manager` in your research, please cite it:
+
+```bibtex
+@software{ws_manager,
+  author  = {Švácha, Seva},
+  title   = {ws\_manager: A workspace manager for ROS 2 colcon workspaces},
+  year    = {2026},
+  url     = {https://github.com/comrob/crl_ws_manager},
+  license = {MIT}
+}
+```
+
+A `CITATION.cff` file is also provided for automatic citation tools (GitHub "Cite this repository" button, Zenodo, etc.).
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Computational Robotics Lab (CRL), Czech Technical University in Prague
+

@@ -35,7 +35,7 @@ WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=true
 # are detectable from ROS_PACKAGE_PATH / COLCON_PREFIX_PATH.
 # Adjust to match your directory structure.
 WS_DEFAULT_WORKSPACES=(
-  "$HOME/ros2_ws"
+  "$HOME/ros2_ws"   # adjust to your workspace paths
   "$HOME/dev_ws"
 )
 

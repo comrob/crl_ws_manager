@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it as below."
+type: software
+title: "ws_manager"
+abstract: >
+  A command-line workspace manager for ROS 2 colcon workspaces.
+  Provides a unified `ws` command for building, cleaning, navigating,
+  and inspecting packages across multiple workspaces, with automatic
+  workspace detection and configurable fallbacks.
+authors:
+  - family-names: Hulchuk
+    given-names: Vsevolod
+    affiliation: >
+      Computational Robotics Lab (CRL),
+      Czech Technical University in Prague
+version: 0.2.0
+date-released: "2026-04-29"
+license: MIT
+repository-code: "https://github.com/comrob/crl_ws_manager"
+keywords:
+  - ROS 2
+  - colcon
+  - workspace management
+  - robotics
+  - developer tooling

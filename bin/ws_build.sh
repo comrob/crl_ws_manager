@@ -144,9 +144,11 @@ workspaces=()
 ws_resolve_workspaces selected_workspaces selected_packages workspaces resolved_ws_pkgs \
   || exit 1
 
-if [[ -f "/opt/ros/${ROS_DISTRO:-jazzy}/setup.bash" ]]; then
+# Source the ROS underlay if available and ROS_DISTRO is set.
+# This makes ros2 pkg prefix, ament paths, etc. available for the build.
+if [[ -n "${ROS_DISTRO:-}" && -f "/opt/ros/${ROS_DISTRO}/setup.bash" ]]; then
   # shellcheck disable=SC1090,SC1091
-  source "/opt/ros/${ROS_DISTRO:-jazzy}/setup.bash"
+  source "/opt/ros/${ROS_DISTRO}/setup.bash"
 fi
 
 built_any=false
