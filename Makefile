@@ -3,11 +3,12 @@ SHELL := /usr/bin/env bash
 TOOLS_DIR   := $(HOME)/.local/bin
 CONFIG_DIR  := $(HOME)/.config/crl_ws_manager
 BASHRC      := $(HOME)/.bashrc
+ZSHRC       := $(HOME)/.zshrc
 
 COMMANDS    := ws ws-build ws-clean ws-cd-resolve ws-list ws-open ws-config ws-which
 
-SOURCE_BEGIN := \# >>> crl ws manager source >>>
-SOURCE_END   := \# <<< crl ws manager source <<<
+SOURCE_BEGIN := \# >>> ws manager source >>>
+SOURCE_END   := \# <<< ws manager source <<<
 
 .PHONY: install uninstall purge
 
@@ -35,18 +36,22 @@ uninstall:
 	if [[ -L "$$dest" ]]; then \
 	  unlink "$$dest" && echo "  Removed $$dest"; \
 	fi
-	@echo "Removing source block from $(BASHRC) ..."
-	@if grep -qF '$(SOURCE_BEGIN)' "$(BASHRC)" 2>/dev/null; then \
-	  tmp=$$(mktemp); \
-	  awk \
-	    -v begin='# >>> crl ws manager source >>>' \
-	    -v end='# <<< crl ws manager source <<<' \
-	    'BEGIN{skip=0} $$0==begin{skip=1;next} $$0==end{skip=0;next} skip==0{print}' \
-	    "$(BASHRC)" > "$$tmp" && mv "$$tmp" "$(BASHRC)" && \
-	  echo "  Removed source block from $(BASHRC)"; \
-	else \
-	  echo "  Source block not found in $(BASHRC), nothing to remove"; \
-	fi
+	@for rc in "$(BASHRC)" "$(ZSHRC)"; do \
+	  if [[ -f "$$rc" ]]; then \
+	    echo "Removing source block from $$rc ..."; \
+	    if grep -qF '$(SOURCE_BEGIN)' "$$rc" 2>/dev/null; then \
+	      tmp=$$(mktemp); \
+	      awk \
+	        -v begin='# >>> ws manager source >>>' \
+	        -v end='# <<< ws manager source <<<' \
+	        'BEGIN{skip=0} $$0==begin{skip=1;next} $$0==end{skip=0;next} skip==0{print}' \
+	        "$$rc" > "$$tmp" && mv "$$tmp" "$$rc" && \
+	      echo "  Removed source block from $$rc"; \
+	    else \
+	      echo "  Source block not found in $$rc, nothing to remove"; \
+	    fi; \
+	  fi; \
+	done
 	@echo "Done. Run 'source $(BASHRC)' or open a new terminal to apply."
 
 # purge: uninstall + remove the local config file and config directory.

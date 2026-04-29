@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      ROS_DISTRO: jazzy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install colcon
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --user colcon-common-extensions
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Prepare mock workspaces
+        run: |
+          mkdir -p "$HOME/ros2_ws/src"
+          mkdir -p "$HOME/dev_ws/src"
+
+      - name: Check shell syntax
+        run: |
+          bash -n bin/*.sh
+          bash -n lib/ws_lib.sh
+          bash -n completion/ws_manager.bash
+          bash -n install.sh
+
+      - name: Install tool
+        run: make install
+
+      - name: Smoke test commands
+        shell: bash
+        run: |
+          source "$HOME/.bashrc"
+          ws --version
+          ws build --help
+          ws cd --help
+          ws doctor
+
+      - name: Uninstall smoke test
+        run: make uninstall

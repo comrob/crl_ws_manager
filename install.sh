@@ -94,7 +94,7 @@ fi
 # Create a sample local config if none exists yet.
 if [[ ! -f "$WS_CONFIG_TARGET" ]]; then
   cat > "$WS_CONFIG_TARGET" <<'EOF'
-# Local configuration for the CRL ROS workspace manager.
+# Local configuration for the ROS workspace manager.
 #
 # This file is sourced by ws_* scripts, so use valid Bash syntax.
 # CLI arguments still take precedence over these defaults.
@@ -134,7 +134,7 @@ _install_into_rcfile() {
 
   # Migrate a stale PATH comment from previous installs.
   local OLD_PATH_COMMENT='# Added by crl_husky_deployment/tools/ws_manager/install.sh'
-  local PATH_COMMENT='# Added by CRL ws_manager install.sh'
+  local PATH_COMMENT='# Added by ws_manager install.sh'
   local PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
   if grep -qF "$OLD_PATH_COMMENT" "$rc" 2>/dev/null; then
     local tmp_file
@@ -151,20 +151,21 @@ _install_into_rcfile() {
   fi
 
   # Remove legacy source blocks.
-  _remove_block_from_file "$rc" "# >>> crl_husky ws manager >>>"      "# <<< crl_husky ws manager <<<"
-  _remove_block_from_file "$rc" "# >>> crl ws manager >>>"            "# <<< crl ws manager <<<"
+  _remove_block_from_file "$rc" "# >>> crl_husky ws manager >>>"        "# <<< crl_husky ws manager <<<"
+  _remove_block_from_file "$rc" "# >>> crl ws manager >>>"              "# <<< crl ws manager <<<"
   _remove_block_from_file "$rc" "# >>> crl_husky ws manager source >>>" "# <<< crl_husky ws manager source <<<"
-  _remove_block_from_file "$rc" "# >>> crl ws manager source >>>"     "# <<< crl ws manager source <<<"
+  _remove_block_from_file "$rc" "# >>> crl ws manager source >>>"       "# <<< crl ws manager source <<<"
+  _remove_block_from_file "$rc" "# >>> ws manager source >>>"           "# <<< ws manager source <<<"
 
-  local SOURCE_BEGIN="# >>> crl ws manager source >>>"
-  local SOURCE_END="# <<< crl ws manager source <<<"
+  local SOURCE_BEGIN="# >>> ws manager source >>>"
+  local SOURCE_END="# <<< ws manager source <<<"
   local SOURCE_BLOCK
   SOURCE_BLOCK=$(cat <<'SRCEOF'
-# >>> crl ws manager source >>>
+# >>> ws manager source >>>
 if [[ -f "$HOME/.config/crl_ws_manager/ws_manager.bash" ]]; then
   source "$HOME/.config/crl_ws_manager/ws_manager.bash"
 fi
-# <<< crl ws manager source <<<
+# <<< ws manager source <<<
 SRCEOF
 )
   if grep -qF "$SOURCE_BEGIN" "$rc" && grep -qF "$SOURCE_END" "$rc"; then

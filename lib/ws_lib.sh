@@ -8,7 +8,7 @@
 #   2. Package-driven lookup: scan env-detected workspaces (+ default fallbacks)
 #      for workspaces that actually contain the requested packages.
 #   3. Environment-detected workspaces from ROS_PACKAGE_PATH / COLCON_PREFIX_PATH.
-#   4. Hardcoded defaults: ~/sw_ws ~/drv_ws.
+#   4. Configured fallbacks from WS_DEFAULT_WORKSPACES.
 #
 # Only levels 3 and 4 are used when no packages are requested (build-all /
 # clean-all scenarios).
@@ -18,11 +18,11 @@
 #   Resolve the local configuration locations for this tool.
 # ---------------------------------------------------------------------------
 ws_config_dir() {
-  printf '%s' "${CRL_WS_CONFIG_DIR:-$HOME/.config/crl_ws_manager}"
+  printf '%s' "${WS_CONFIG_DIR:-${CRL_WS_CONFIG_DIR:-$HOME/.config/crl_ws_manager}}"
 }
 
 ws_legacy_config_dir() {
-  printf '%s' "${CRL_WS_LEGACY_CONFIG_DIR:-$HOME/.config/crl_husky_deployment}"
+  printf '%s' "${WS_LEGACY_CONFIG_DIR:-${CRL_WS_LEGACY_CONFIG_DIR:-$HOME/.config/crl_husky_deployment}}"
 }
 
 ws_config_file() {
@@ -46,7 +46,7 @@ ws_lib_file() {
 #   Print the shared top-level help text for the ws command.
 # ---------------------------------------------------------------------------
 ws_print_main_help() {
-  echo "CRL ROS workspace manager"
+  echo "ROS workspace manager"
   echo "Run 'ws --help' to see available commands."
   echo ""
   echo "Usage: ws [build | clean | cd | list | open | config] <args>"
@@ -137,7 +137,7 @@ ws_init_config_file_if_missing() {
   fi
 
   cat > "$cfg_file" <<'EOF'
-# Local configuration for the CRL ROS workspace manager.
+# Local configuration for the ROS workspace manager.
 #
 # This file is sourced by ws_* scripts, so use valid Bash syntax.
 # CLI arguments still take precedence over these defaults.
