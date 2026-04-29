@@ -316,7 +316,7 @@ If you use `ws_manager` in your research, please cite it:
 
 ```bibtex
 @software{ws_manager,
-  author  = {Švácha, Seva},
+  author  = {Hulchuk, Vsevolod},
   title   = {ws\_manager: A workspace manager for ROS 2 colcon workspaces},
   year    = {2026},
   url     = {https://github.com/comrob/crl_ws_manager},
