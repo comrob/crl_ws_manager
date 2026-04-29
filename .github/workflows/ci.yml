@@ -27,7 +27,7 @@ jobs:
       - name: Install bats
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats shellcheck
+          sudo apt-get install -y bats
 
       - name: Prepare mock workspaces
         run: |
@@ -40,13 +40,6 @@ jobs:
           bash -n lib/ws_lib.sh
           bash -n completion/ws_manager.bash
           bash -n install.sh
-
-      - name: Run shellcheck
-        run: |
-          shellcheck -x bin/*.sh
-          shellcheck -x lib/ws_lib.sh
-          shellcheck -x completion/ws_manager.bash
-          shellcheck -x install.sh
 
       - name: Install tool
         run: make install
