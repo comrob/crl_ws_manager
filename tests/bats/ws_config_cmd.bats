@@ -25,6 +25,35 @@ setup() {
   [[ "$output" == "WS_BUILD_PROGRAM=my_colcon" ]]
 }
 
+@test "ws config setters replace multiline assignments cleanly" {
+  cfg="$TEST_HOME/.config/crl_ws_manager/ws_config.bash"
+  mkdir -p "$(dirname "$cfg")"
+  cat > "$cfg" <<'EOF'
+WS_BUILD_PROGRAM="colcon"
+WS_BUILD_DEFAULT_ARGS=(
+  --symlink-install
+  --continue-on-error
+)
+WS_EDITOR_PROGRAM="code"
+EOF
+
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" set-build-args --merge-install
+  [ "$status" -eq 0 ]
+
+  run bash -lc "grep -c '^WS_BUILD_DEFAULT_ARGS=' '$cfg'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "1" ]
+
+  run bash -lc "grep -F -- '--symlink-install' '$cfg'"
+  [ "$status" -ne 0 ]
+
+  run bash -lc "grep -E '^[[:space:]]*\\)[[:space:]]*$' '$cfg'"
+  [ "$status" -ne 0 ]
+
+  run bash -lc "grep -Fx 'WS_BUILD_DEFAULT_ARGS=( --merge-install )' '$cfg'"
+  [ "$status" -eq 0 ]
+}
+
 @test "ws config set-editor stores program and args" {
   run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" set-editor nvim --headless
   [ "$status" -eq 0 ]

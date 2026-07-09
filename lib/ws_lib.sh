@@ -190,15 +190,29 @@ ws_upsert_config_assignment() {
   tmp="$(mktemp)"
 
   awk -v key="$key" -v assignment="$assignment" '
-    BEGIN { replaced = 0 }
-    $0 ~ "^" key "=" || $0 ~ "^" key "\\(" {
-      if (replaced == 0) {
-        print assignment
-        replaced = 1
+    BEGIN { replaced = 0; skipping = 0 }
+    {
+      if (skipping == 1) {
+        if ($0 ~ /^[[:space:]]*\)[[:space:]]*$/) {
+          skipping = 0
+        }
+        next
       }
-      next
+
+      if ($0 ~ "^" key "=") {
+        if (replaced == 0) {
+          print assignment
+          replaced = 1
+        }
+
+        if ($0 ~ "\\([[:space:]]*$") {
+          skipping = 1
+        }
+        next
+      }
+
+      print
     }
-    { print }
     END {
       if (replaced == 0) {
         print assignment
