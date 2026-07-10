@@ -46,6 +46,21 @@ setup() {
   [[ "$output" == 'WS_BUILD_ENV_COMMAND=""' ]]
 }
 
+@test "ws config show is visually separated" {
+  mkdir -p "$TEST_HOME/.config/crl_ws_manager"
+  cat > "$TEST_HOME/.config/crl_ws_manager/ws_env.bash" <<'EOF'
+export DISTCC_HOSTS="seva-ctu/64,lzo"
+export CCACHE_PREFIX="distcc"
+EOF
+
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Workspace config:"* ]]
+  [[ "$output" == *"Environment file contents:"* ]]
+  [[ "$output" == *"  export DISTCC_HOSTS=\"seva-ctu/64,lzo\""* ]]
+  [[ "$output" == *"  export CCACHE_PREFIX=\"distcc\""* ]]
+}
+
 @test "ws config env-init creates missing env file" {
   run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" env-init
   [ "$status" -eq 0 ]
@@ -54,6 +69,21 @@ setup() {
   [ -f "$env_file" ]
   run bash -lc "grep -F 'Local environment for ws_manager.' '$env_file'"
   [ "$status" -eq 0 ]
+}
+
+@test "ws config show includes env file contents" {
+  mkdir -p "$TEST_HOME/.config/crl_ws_manager"
+  cat > "$TEST_HOME/.config/crl_ws_manager/ws_env.bash" <<'EOF'
+export ROS_DOMAIN_ID=7
+export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+EOF
+
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Workspace config:"* ]]
+  [[ "$output" == *"Environment file contents:"* ]]
+  [[ "$output" == *"export ROS_DOMAIN_ID=7"* ]]
+  [[ "$output" == *"export RMW_IMPLEMENTATION=rmw_zenoh_cpp"* ]]
 }
 
 @test "ws config setters replace multiline assignments cleanly" {

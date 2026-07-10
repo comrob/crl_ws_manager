@@ -51,14 +51,22 @@ show_config() {
   echo "Config file: $(ws_config_file)"
   echo "Env file: $(ws_env_file)"
   echo ""
-  echo "WS_BUILD_PROGRAM=$WS_BUILD_PROGRAM"
-  echo "WS_BUILD_SUBCOMMAND=$WS_BUILD_SUBCOMMAND"
-  echo "WS_BUILD_DEFAULT_ARGS=( $(array_to_shell_list "${WS_BUILD_DEFAULT_ARGS[@]}") )"
-  echo "WS_BUILD_ENV_COMMAND=$(printf '%q' "$WS_BUILD_ENV_COMMAND")"
-  echo "WS_BUILD_PACKAGE_SELECT_FLAG=$WS_BUILD_PACKAGE_SELECT_FLAG"
-  echo "WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=$WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD"
-  echo "WS_EDITOR_PROGRAM=$WS_EDITOR_PROGRAM"
-  echo "WS_EDITOR_ARGS=( $(array_to_shell_list "${WS_EDITOR_ARGS[@]}") )"
+  echo "Workspace config:"
+  echo "  WS_BUILD_PROGRAM=$WS_BUILD_PROGRAM"
+  echo "  WS_BUILD_SUBCOMMAND=$WS_BUILD_SUBCOMMAND"
+  echo "  WS_BUILD_DEFAULT_ARGS=( $(array_to_shell_list "${WS_BUILD_DEFAULT_ARGS[@]}") )"
+  echo "  WS_BUILD_ENV_COMMAND=$(printf '%q' "$WS_BUILD_ENV_COMMAND")"
+  echo "  WS_BUILD_PACKAGE_SELECT_FLAG=$WS_BUILD_PACKAGE_SELECT_FLAG"
+  echo "  WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=$WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD"
+  echo "  WS_EDITOR_PROGRAM=$WS_EDITOR_PROGRAM"
+  echo "  WS_EDITOR_ARGS=( $(array_to_shell_list "${WS_EDITOR_ARGS[@]}") )"
+  echo ""
+  echo "Environment file contents:"
+  if [[ -f "$(ws_env_file)" ]]; then
+    sed 's/^/  /' "$(ws_env_file)"
+  else
+    echo "  <missing>"
+  fi
 }
 
 if ws_is_help_token "${1:-}"; then
