@@ -13,6 +13,11 @@
 # Only levels 3 and 4 are used when no packages are requested (build-all /
 # clean-all scenarios).
 
+if [[ "${WS_LIB_LOADED:-false}" == "true" ]]; then
+  return 0
+fi
+WS_LIB_LOADED=true
+
 # ---------------------------------------------------------------------------
 # ws_config_dir / ws_legacy_config_dir / ws_config_file / ws_functions_file
 #   Resolve the local configuration locations for this tool.
@@ -39,6 +44,10 @@ ws_functions_file() {
 
 ws_lib_file() {
   printf '%s/ws_lib.sh' "$(ws_config_dir)"
+}
+
+ws_env_file() {
+  printf '%s/ws_env.bash' "$(ws_config_dir)"
 }
 
 # ---------------------------------------------------------------------------
@@ -84,45 +93,53 @@ ws_is_help_token() {
 }
 
 # ---------------------------------------------------------------------------
-# ws_import_configured_env
-#   Run WS_BUILD_ENV_COMMAND in an interactive Bash once, then import the
-#   exported environment variables into the current shell.
+# ws_load_env_file
+#   Source ~/.bashrc and the shared tool environment file, if present.
 # ---------------------------------------------------------------------------
-ws_import_configured_env() {
-  if [[ "${WS_ENV_COMMAND_APPLIED:-false}" == "true" ]]; then
+ws_load_env_file() {
+  if [[ -f "$HOME/.bashrc" && "${WS_BASHRC_LOADED:-false}" != "true" ]]; then
+    WS_BASHRC_LOADED=true
+    # shellcheck disable=SC1090
+    source "$HOME/.bashrc"
+  fi
+
+  local env_file=""
+  if [[ -f "$(ws_env_file)" ]]; then
+    env_file="$(ws_env_file)"
+  fi
+
+  if [[ -n "$env_file" ]]; then
+    # shellcheck disable=SC1090
+    source "$env_file"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# ws_init_env_file_if_missing
+#   Create a local environment file if one does not already exist.
+# ---------------------------------------------------------------------------
+ws_init_env_file_if_missing() {
+  local env_file
+  env_file="$(ws_env_file)"
+
+  mkdir -p "$(ws_config_dir)"
+
+  if [[ -f "$env_file" ]]; then
     return 0
   fi
 
-  if [[ -z "${WS_BUILD_ENV_COMMAND:-}" ]]; then
-    WS_ENV_COMMAND_APPLIED=true
-    return 0
-  fi
+  cat > "$env_file" <<'EOF'
+# Local environment for ws_manager.
+#
+# Export variables here if they should be available before any ws command runs.
+# This file is sourced by ws_* scripts before the workspace config file.
+#
+# Examples:
+# export ROS_DOMAIN_ID=0
+# export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+# source /opt/ros/jazzy/setup.bash
 
-  local tmp_env entry name value
-  tmp_env="$(mktemp)"
-
-  if ! bash -ic "$WS_BUILD_ENV_COMMAND >/dev/null 2>&1 || exit \$?; env -0" > "$tmp_env"; then
-    rm -f "$tmp_env"
-    echo "Error: failed to run WS_BUILD_ENV_COMMAND: $WS_BUILD_ENV_COMMAND" >&2
-    return 1
-  fi
-
-  while IFS= read -r -d '' entry; do
-    name="${entry%%=*}"
-    value="${entry#*=}"
-
-    case "$name" in
-      BASH_*|DIRSTACK|EUID|FUNCNAME|GROUPS|HOSTNAME|IFS|LINENO|OLDPWD|OPTARG|OPTIND|PPID|PS1|PS2|PS4|PWD|SHELLOPTS|SHLVL|TERM|UID|_)
-        ;;
-      *)
-        printf -v "$name" '%s' "$value"
-        export "$name"
-        ;;
-    esac
-  done < "$tmp_env"
-
-  rm -f "$tmp_env"
-  WS_ENV_COMMAND_APPLIED=true
+EOF
 }
 
 # ---------------------------------------------------------------------------
@@ -133,6 +150,8 @@ ws_load_config() {
   if [[ "${WS_CONFIG_LOADED:-false}" == "true" ]]; then
     return 0
   fi
+
+  ws_load_env_file
 
   : "${WS_BUILD_PROGRAM:=colcon}"
   : "${WS_BUILD_SUBCOMMAND:=build}"
@@ -161,8 +180,6 @@ ws_load_config() {
     # shellcheck disable=SC1090
     source "$cfg_file"
   fi
-
-  ws_import_configured_env || return 1
 
   WS_CONFIG_LOADED=true
 }
@@ -193,7 +210,6 @@ WS_BUILD_DEFAULT_ARGS=(
   --symlink-install
   --continue-on-error
 )
-WS_BUILD_ENV_COMMAND=""
 WS_BUILD_PACKAGE_SELECT_FLAG="--packages-select"
 WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=true
 

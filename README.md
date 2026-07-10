@@ -101,17 +101,20 @@ ws build -w ros2_ws -p my_package
 ws build -w ~/ros2_ws -p pkg_a -p pkg_b
 ```
 
-Build flags are configured in `~/.config/crl_ws_manager/ws_config.bash`.
-If you need a ROS environment helper from your shell rc, set `WS_BUILD_ENV_COMMAND`
-or run:
+`~/.bashrc` is loaded first for ws commands, so the tool sees the same shell
+environment you get in a normal terminal. If you want ws-specific overrides,
+put them in `~/.config/crl_ws_manager/ws_env.bash` and export them there.
+See [examples/ws_env.bash](examples/ws_env.bash) for a template.
 
 ```bash
-ws config set-build-env-command jazzy_env
+ws config env-edit
 ```
 
-That command is executed in `bash -ic` and its exported environment is imported
-before env-dependent commands such as `ws list`, `ws cd`, `ws which`, `ws open`,
-and `ws build`, so exported variables from `~/.bashrc` are available too.
+Use this for variables like `ROS_DOMAIN_ID`, `RMW_IMPLEMENTATION`, or a source
+line for your ROS underlay. The workspace config file is still the right place
+for tool settings like build flags, editor commands, and fallback workspaces.
+
+Load order is: `~/.bashrc` -> `ws_env.bash` -> `ws_config.bash`.
 
 ---
 
@@ -189,17 +192,25 @@ Removes `build/`, `install/`, and `log/` artifacts for selected packages or enti
 ### `ws config`
 
 ```
-ws config [show|path|init|edit|set-editor|set-build-program|set-build-subcommand|set-build-args|set-build-env-command|require-all]
+ws config [show|path|env-path|init|env-init|edit|env-edit|set-editor|set-build-program|set-build-subcommand|set-build-args|set-build-env-command|require-all]
 ```
 
 ```bash
 ws config show
 ws config edit
+ws config env-edit
 ws config set-editor code --reuse-window
 ws config set-build-env-command jazzy_env
 ws config set-build-args --symlink-install --continue-on-error
 ws config require-all true
 ```
+
+The environment file is loaded before the workspace config file, so values you
+export there are visible to workspace discovery and command execution.
+
+If you still want to keep shell-hook based setup, `ws config set-build-env-command`
+remains available as a compatibility option, but the env file is the clearer
+place for normal configuration.
 
 To configure fallback workspaces:
 

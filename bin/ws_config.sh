@@ -12,8 +12,11 @@ print_usage() {
   echo "Commands:"
   echo "  show                      Show effective configuration values"
   echo "  path                      Print local config path"
+  echo "  env-path                  Print local environment file path"
   echo "  init                      Create local config file if missing"
+  echo "  env-init                  Create local environment file if missing"
   echo "  edit                      Open local config file in editor"
+  echo "  env-edit                  Open local environment file in editor"
   echo "  set-editor <program> [args...]"
   echo "                            Set WS_EDITOR_PROGRAM and WS_EDITOR_ARGS"
   echo "  set-build-program <prog>  Set WS_BUILD_PROGRAM"
@@ -27,6 +30,7 @@ print_usage() {
   echo "  ws config"
   echo "  ws config show"
   echo "  ws config edit"
+  echo "  ws config env-edit"
   echo "  ws config set-editor code --reuse-window"
   echo "  ws config set-build-env-command jazzy_env"
   echo "  ws config set-build-args --symlink-install --continue-on-error"
@@ -45,11 +49,11 @@ array_to_shell_list() {
 show_config() {
   ws_load_config
   echo "Config file: $(ws_config_file)"
+  echo "Env file: $(ws_env_file)"
   echo ""
   echo "WS_BUILD_PROGRAM=$WS_BUILD_PROGRAM"
   echo "WS_BUILD_SUBCOMMAND=$WS_BUILD_SUBCOMMAND"
   echo "WS_BUILD_DEFAULT_ARGS=( $(array_to_shell_list "${WS_BUILD_DEFAULT_ARGS[@]}") )"
-  echo "WS_BUILD_ENV_COMMAND=$(printf '%q' "$WS_BUILD_ENV_COMMAND")"
   echo "WS_BUILD_PACKAGE_SELECT_FLAG=$WS_BUILD_PACKAGE_SELECT_FLAG"
   echo "WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=$WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD"
   echo "WS_EDITOR_PROGRAM=$WS_EDITOR_PROGRAM"
@@ -73,14 +77,30 @@ case "$cmd" in
   path)
     ws_config_file
     ;;
+  env-path)
+    ws_env_file
+    ;;
   init)
     ws_init_config_file_if_missing
     echo "Config ready: $(ws_config_file)"
+    ;;
+  env-init)
+    ws_init_env_file_if_missing
+    echo "Env ready: $(ws_env_file)"
     ;;
   edit)
     ws_init_config_file_if_missing
     editor_cmd=()
     ws_editor_make_command editor_cmd "$(ws_config_file)"
+    printf 'Executing:'
+    printf ' %q' "${editor_cmd[@]}"
+    printf '\n'
+    "${editor_cmd[@]}"
+    ;;
+  env-edit)
+    ws_init_env_file_if_missing
+    editor_cmd=()
+    ws_editor_make_command editor_cmd "$(ws_env_file)"
     printf 'Executing:'
     printf ' %q' "${editor_cmd[@]}"
     printf '\n'

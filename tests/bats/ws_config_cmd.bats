@@ -25,6 +25,27 @@ setup() {
   [[ "$output" == "WS_BUILD_PROGRAM=my_colcon" ]]
 }
 
+@test "ws config setters create missing config files" {
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" set-build-program colcon
+  [ "$status" -eq 0 ]
+
+  cfg="$TEST_HOME/.config/crl_ws_manager/ws_config.bash"
+  [ -f "$cfg" ]
+  run bash -lc "grep '^WS_BUILD_PROGRAM=' '$cfg'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "WS_BUILD_PROGRAM=colcon" ]]
+}
+
+@test "ws config env-init creates missing env file" {
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" env-init
+  [ "$status" -eq 0 ]
+
+  env_file="$TEST_HOME/.config/crl_ws_manager/ws_env.bash"
+  [ -f "$env_file" ]
+  run bash -lc "grep -F 'Local environment for ws_manager.' '$env_file'"
+  [ "$status" -eq 0 ]
+}
+
 @test "ws config setters replace multiline assignments cleanly" {
   cfg="$TEST_HOME/.config/crl_ws_manager/ws_config.bash"
   mkdir -p "$(dirname "$cfg")"

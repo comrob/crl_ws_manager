@@ -32,14 +32,12 @@ setup() {
   [[ "$output" == *"dup_pkg"* ]]
 }
 
-@test "ws build runs configured env command in interactive bash" {
+@test "ws build imports environment from ws env file" {
   local ws="$TEST_HOME/ws_env"
   make_pkg "$ws" "env_pkg"
   mkdir -p "$TEST_HOME/.config/crl_ws_manager"
-  cat > "$TEST_HOME/.bashrc" <<'EOF'
-jazzy_env() {
-  export DIST_COMPUTE_TOKEN=ready
-}
+  cat > "$TEST_HOME/.config/crl_ws_manager/ws_env.bash" <<'EOF'
+export DIST_COMPUTE_TOKEN=ready
 EOF
   cat > "$TEST_HOME/.config/crl_ws_manager/ws_config.bash" <<'EOF'
 WS_BUILD_PROGRAM="bash"
@@ -47,7 +45,6 @@ WS_BUILD_SUBCOMMAND="-lc"
 WS_BUILD_DEFAULT_ARGS=(
   'printf %s "$DIST_COMPUTE_TOKEN"'
 )
-WS_BUILD_ENV_COMMAND="jazzy_env"
 EOF
 
   run env \
