@@ -20,6 +20,11 @@ WS_BUILD_DEFAULT_ARGS=(
   --continue-on-error
 )
 
+# Optional shell command run in an interactive Bash before each build.
+# Useful for ROS environment helpers defined in ~/.bashrc, for example:
+# WS_BUILD_ENV_COMMAND="jazzy_env"
+WS_BUILD_ENV_COMMAND=""
+
 # Flag used to select specific packages.
 WS_BUILD_PACKAGE_SELECT_FLAG="--packages-select"
 

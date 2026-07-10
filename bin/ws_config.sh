@@ -19,6 +19,8 @@ print_usage() {
   echo "  set-build-program <prog>  Set WS_BUILD_PROGRAM"
   echo "  set-build-subcommand <s>  Set WS_BUILD_SUBCOMMAND"
   echo "  set-build-args <args...>  Set WS_BUILD_DEFAULT_ARGS array"
+  echo "  set-build-env-command <cmd...>"
+  echo "                            Set WS_BUILD_ENV_COMMAND"
   echo "  require-all <true|false>  Set WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD"
   echo ""
   echo "Examples:"
@@ -26,6 +28,7 @@ print_usage() {
   echo "  ws config show"
   echo "  ws config edit"
   echo "  ws config set-editor code --reuse-window"
+  echo "  ws config set-build-env-command jazzy_env"
   echo "  ws config set-build-args --symlink-install --continue-on-error"
   echo "  ws config require-all true"
 }
@@ -46,6 +49,7 @@ show_config() {
   echo "WS_BUILD_PROGRAM=$WS_BUILD_PROGRAM"
   echo "WS_BUILD_SUBCOMMAND=$WS_BUILD_SUBCOMMAND"
   echo "WS_BUILD_DEFAULT_ARGS=( $(array_to_shell_list "${WS_BUILD_DEFAULT_ARGS[@]}") )"
+  echo "WS_BUILD_ENV_COMMAND=$(printf '%q' "$WS_BUILD_ENV_COMMAND")"
   echo "WS_BUILD_PACKAGE_SELECT_FLAG=$WS_BUILD_PACKAGE_SELECT_FLAG"
   echo "WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=$WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD"
   echo "WS_EDITOR_PROGRAM=$WS_EDITOR_PROGRAM"
@@ -116,6 +120,14 @@ case "$cmd" in
     fi
     ws_upsert_config_assignment "WS_BUILD_DEFAULT_ARGS" "WS_BUILD_DEFAULT_ARGS=( $(array_to_shell_list "$@") )"
     echo "Updated build args in $(ws_config_file)"
+    ;;
+  set-build-env-command)
+    if [[ $# -eq 0 ]]; then
+      echo "Error: set-build-env-command requires at least one command token." >&2
+      exit 1
+    fi
+    ws_upsert_config_assignment "WS_BUILD_ENV_COMMAND" "WS_BUILD_ENV_COMMAND=$(printf '%q' "$*")"
+    echo "Updated build env command in $(ws_config_file)"
     ;;
   require-all)
     if [[ $# -ne 1 ]]; then

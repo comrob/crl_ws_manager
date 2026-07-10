@@ -10,27 +10,29 @@
 
 ## Table of Contents
 
-- [TL;DR](#tldr)
-- [Installation](#installation)
-- [Commands](#commands)
-  - [ws build](#ws-build)
-  - [ws cd](#ws-cd)
-  - [ws list](#ws-list)
-  - [ws open](#ws-open)
-  - [ws which](#ws-which)
-  - [ws clean](#ws-clean)
-  - [ws config](#ws-config)
-  - [ws doctor](#ws-doctor)
-  - [ws update](#ws-update)
-  - [ws version](#ws-version)
-  - [ws-cd-resolve (scripting)](#ws-cd-resolve-scripting)
-- [Bash Completion](#bash-completion)
-- [Developer Section](#developer-section)
-  - [Running Tests](#running-tests)
-  - [Local CI Run](#local-ci-run)
-  - [ROS Distro Compatibility](#ros-distro-compatibility)
-- [Citing This Work](#citing-this-work)
-- [License](#license)
+- [ws\_manager](#ws_manager)
+  - [Table of Contents](#table-of-contents)
+  - [TL;DR](#tldr)
+  - [Installation](#installation)
+  - [Commands](#commands)
+    - [`ws build`](#ws-build)
+    - [`ws cd`](#ws-cd)
+    - [`ws list`](#ws-list)
+    - [`ws open`](#ws-open)
+    - [`ws which`](#ws-which)
+    - [`ws clean`](#ws-clean)
+    - [`ws config`](#ws-config)
+    - [`ws doctor`](#ws-doctor)
+    - [`ws update`](#ws-update)
+    - [`ws version`](#ws-version)
+    - [`ws-cd-resolve` (scripting)](#ws-cd-resolve-scripting)
+  - [Bash Completion](#bash-completion)
+  - [Developer Section](#developer-section)
+    - [Running Tests](#running-tests)
+    - [Local CI Run](#local-ci-run)
+    - [ROS Distro Compatibility](#ros-distro-compatibility)
+  - [Citing This Work](#citing-this-work)
+  - [License](#license)
 
 ---
 
@@ -100,6 +102,16 @@ ws build -w ~/ros2_ws -p pkg_a -p pkg_b
 ```
 
 Build flags are configured in `~/.config/crl_ws_manager/ws_config.bash`.
+If you need a ROS environment helper from your shell rc, set `WS_BUILD_ENV_COMMAND`
+or run:
+
+```bash
+ws config set-build-env-command jazzy_env
+```
+
+That command is executed in `bash -ic` and its exported environment is imported
+before env-dependent commands such as `ws list`, `ws cd`, `ws which`, `ws open`,
+and `ws build`, so exported variables from `~/.bashrc` are available too.
 
 ---
 
@@ -177,13 +189,14 @@ Removes `build/`, `install/`, and `log/` artifacts for selected packages or enti
 ### `ws config`
 
 ```
-ws config [show|path|init|edit|set-editor|set-build-program|set-build-subcommand|set-build-args|require-all]
+ws config [show|path|init|edit|set-editor|set-build-program|set-build-subcommand|set-build-args|set-build-env-command|require-all]
 ```
 
 ```bash
 ws config show
 ws config edit
 ws config set-editor code --reuse-window
+ws config set-build-env-command jazzy_env
 ws config set-build-args --symlink-install --continue-on-error
 ws config require-all true
 ```

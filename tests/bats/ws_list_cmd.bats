@@ -29,3 +29,23 @@ setup() {
   [[ "$output" == *"$ws built_pkg installed"* ]]
   [[ "$output" != *"src_only_pkg"* ]]
 }
+
+@test "ws list imports environment from configured shell command" {
+  local ws="$TEST_HOME/ws_list_cfg_env"
+  make_pkg "$ws" "cfg_pkg"
+  mkdir -p "$TEST_HOME/.config/crl_ws_manager"
+  cat > "$TEST_HOME/.bashrc" <<EOF
+jazzy_env() {
+  export ROS_PACKAGE_PATH="$ws/src"
+  export COLCON_PREFIX_PATH="$ws/install"
+}
+EOF
+  cat > "$TEST_HOME/.config/crl_ws_manager/ws_config.bash" <<'EOF'
+WS_BUILD_ENV_COMMAND="jazzy_env"
+EOF
+
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_list.sh" -q
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"$ws sourced"* ]]
+  [[ "$output" == *"$ws cfg_pkg not-installed"* ]]
+}

@@ -84,6 +84,48 @@ ws_is_help_token() {
 }
 
 # ---------------------------------------------------------------------------
+# ws_import_configured_env
+#   Run WS_BUILD_ENV_COMMAND in an interactive Bash once, then import the
+#   exported environment variables into the current shell.
+# ---------------------------------------------------------------------------
+ws_import_configured_env() {
+  if [[ "${WS_ENV_COMMAND_APPLIED:-false}" == "true" ]]; then
+    return 0
+  fi
+
+  if [[ -z "${WS_BUILD_ENV_COMMAND:-}" ]]; then
+    WS_ENV_COMMAND_APPLIED=true
+    return 0
+  fi
+
+  local tmp_env entry name value
+  tmp_env="$(mktemp)"
+
+  if ! bash -ic "$WS_BUILD_ENV_COMMAND >/dev/null 2>&1 || exit \$?; env -0" > "$tmp_env"; then
+    rm -f "$tmp_env"
+    echo "Error: failed to run WS_BUILD_ENV_COMMAND: $WS_BUILD_ENV_COMMAND" >&2
+    return 1
+  fi
+
+  while IFS= read -r -d '' entry; do
+    name="${entry%%=*}"
+    value="${entry#*=}"
+
+    case "$name" in
+      BASH_*|DIRSTACK|EUID|FUNCNAME|GROUPS|HOSTNAME|IFS|LINENO|OLDPWD|OPTARG|OPTIND|PPID|PS1|PS2|PS4|PWD|SHELLOPTS|SHLVL|TERM|UID|_)
+        ;;
+      *)
+        printf -v "$name" '%s' "$value"
+        export "$name"
+        ;;
+    esac
+  done < "$tmp_env"
+
+  rm -f "$tmp_env"
+  WS_ENV_COMMAND_APPLIED=true
+}
+
+# ---------------------------------------------------------------------------
 # ws_load_config
 #   Load built-in defaults and then source the local config file, if present.
 # ---------------------------------------------------------------------------
@@ -97,6 +139,7 @@ ws_load_config() {
   if ! declare -p WS_BUILD_DEFAULT_ARGS >/dev/null 2>&1; then
     WS_BUILD_DEFAULT_ARGS=(--symlink-install --continue-on-error)
   fi
+  : "${WS_BUILD_ENV_COMMAND:=}"
   : "${WS_BUILD_PACKAGE_SELECT_FLAG:=--packages-select}"
   : "${WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD:=true}"
   : "${WS_EDITOR_PROGRAM:=code}"
@@ -118,6 +161,8 @@ ws_load_config() {
     # shellcheck disable=SC1090
     source "$cfg_file"
   fi
+
+  ws_import_configured_env || return 1
 
   WS_CONFIG_LOADED=true
 }
@@ -148,6 +193,7 @@ WS_BUILD_DEFAULT_ARGS=(
   --symlink-install
   --continue-on-error
 )
+WS_BUILD_ENV_COMMAND=""
 WS_BUILD_PACKAGE_SELECT_FLAG="--packages-select"
 WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=true
 
@@ -244,6 +290,21 @@ ws_build_make_command() {
   if [[ ${#packages[@]} -gt 0 && -n "$WS_BUILD_PACKAGE_SELECT_FLAG" ]]; then
     _wbmc_ref+=("$WS_BUILD_PACKAGE_SELECT_FLAG" "${packages[@]}")
   fi
+}
+
+# ---------------------------------------------------------------------------
+# ws_shell_join_command arg...
+#   Print a shell-escaped command string assembled from argv items.
+# ---------------------------------------------------------------------------
+ws_shell_join_command() {
+  local joined=""
+  local arg
+
+  for arg in "$@"; do
+    joined+="$(printf '%q' "$arg") "
+  done
+
+  printf '%s' "${joined% }"
 }
 
 # ---------------------------------------------------------------------------

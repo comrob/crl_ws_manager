@@ -99,7 +99,46 @@ if [[ ! -f "$WS_CONFIG_TARGET" ]]; then
 # This file is sourced by ws_* scripts, so use valid Bash syntax.
 # CLI arguments still take precedence over these defaults.
 
-WS_BUILD_PROGRAM="colcon"
+ws_colcon_limited() {
+  local cores workers quota cpu_offset memory_max cpu_end
+  cores="$(nproc)"
+  cpu_offset="${WS_BUILD_CPU_OFFSET:-2}"
+  memory_max="${WS_BUILD_MEMORY_MAX:-8G}"
+
+  if (( cores > cpu_offset )); then
+    workers=$((cores - cpu_offset))
+  else
+    workers=1
+  fi
+
+  quota=$(( workers * 100 / cores ))
+  if (( quota < 1 )); then
+    quota=1
+  fi
+
+  export CMAKE_BUILD_PARALLEL_LEVEL="$workers"
+  export MAKEFLAGS="-j$workers"
+
+  if command -v systemd-run >/dev/null 2>&1; then
+    exec systemd-run --user --scope \
+      -p "CPUQuota=${quota}%" \
+      -p "MemoryMax=${memory_max}" -- \
+      env CMAKE_BUILD_PARALLEL_LEVEL="$workers" MAKEFLAGS="-j$workers" \
+      colcon --parallel-workers "$workers" "$@"
+  fi
+
+  if command -v taskset >/dev/null 2>&1; then
+    cpu_end=$((workers - 1))
+    exec taskset -c "0-${cpu_end}" \
+      env CMAKE_BUILD_PARALLEL_LEVEL="$workers" MAKEFLAGS="-j$workers" \
+      colcon --parallel-workers "$workers" "$@"
+  fi
+
+  exec env CMAKE_BUILD_PARALLEL_LEVEL="$workers" MAKEFLAGS="-j$workers" \
+    colcon --parallel-workers "$workers" "$@"
+}
+
+WS_BUILD_PROGRAM="ws_colcon_limited"
 WS_BUILD_SUBCOMMAND="build"
 WS_BUILD_DEFAULT_ARGS=(
   --symlink-install

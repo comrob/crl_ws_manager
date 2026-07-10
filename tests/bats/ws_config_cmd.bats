@@ -67,3 +67,13 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == "WS_EDITOR_ARGS=( --headless )" ]]
 }
+
+@test "ws config set-build-env-command stores shell command" {
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" set-build-env-command jazzy_env --overlay dev
+  [ "$status" -eq 0 ]
+
+  cfg="$TEST_HOME/.config/crl_ws_manager/ws_config.bash"
+  run bash -lc "grep '^WS_BUILD_ENV_COMMAND=' '$cfg'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == 'WS_BUILD_ENV_COMMAND=jazzy_env\ --overlay\ dev' ]]
+}
