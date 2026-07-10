@@ -144,6 +144,7 @@ WS_BUILD_DEFAULT_ARGS=(
   --symlink-install
   --continue-on-error
 )
+WS_BUILD_ENV_COMMAND=""
 WS_BUILD_PACKAGE_SELECT_FLAG="--packages-select"
 WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=true
 

@@ -208,9 +208,9 @@ ws config require-all true
 The environment file is loaded before the workspace config file, so values you
 export there are visible to workspace discovery and command execution.
 
-If you still want to keep shell-hook based setup, `ws config set-build-env-command`
-remains available as a compatibility option, but the env file is the clearer
-place for normal configuration.
+If you want the tool to run a shell hook automatically before env-dependent
+commands, `ws config set-build-env-command` is still supported. Use it for
+shell-function based setup such as `jazzy_env`.
 
 To configure fallback workspaces:
 

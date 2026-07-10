@@ -36,6 +36,16 @@ setup() {
   [[ "$output" == "WS_BUILD_PROGRAM=colcon" ]]
 }
 
+@test "ws config init includes build env command setting" {
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" init
+  [ "$status" -eq 0 ]
+
+  cfg="$TEST_HOME/.config/crl_ws_manager/ws_config.bash"
+  run bash -lc "grep '^WS_BUILD_ENV_COMMAND=' '$cfg'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == 'WS_BUILD_ENV_COMMAND=""' ]]
+}
+
 @test "ws config env-init creates missing env file" {
   run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" env-init
   [ "$status" -eq 0 ]

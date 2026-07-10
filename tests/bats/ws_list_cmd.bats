@@ -58,3 +58,23 @@ EOF
   [[ "$output" == *"$ws sourced"* ]]
   [[ "$output" == *"$ws bashrc_pkg not-installed"* ]]
 }
+
+@test "ws list runs configured env command before discovery" {
+  local ws="$TEST_HOME/ws_list_hook_env"
+  make_pkg "$ws" "hook_pkg"
+  cat > "$TEST_HOME/.bashrc" <<EOF
+jazzy_env() {
+  export ROS_PACKAGE_PATH="$ws/src"
+  export COLCON_PREFIX_PATH="$ws/install"
+}
+EOF
+  mkdir -p "$TEST_HOME/.config/crl_ws_manager"
+  cat > "$TEST_HOME/.config/crl_ws_manager/ws_config.bash" <<'EOF'
+WS_BUILD_ENV_COMMAND="jazzy_env"
+EOF
+
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_list.sh" -q
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"$ws sourced"* ]]
+  [[ "$output" == *"$ws hook_pkg not-installed"* ]]
+}
