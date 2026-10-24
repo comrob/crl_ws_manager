@@ -15,7 +15,7 @@ fi
 
 print_usage() {
   ws_load_config
-  echo "Usage: ws build [--all] [--clean] [-w|--ws <workspace>]... [-p|--packages <pkg>]... [<pkg>...]"
+  echo "Usage: ws build [--all] [--clean] [--local] [-w|--ws <workspace>]... [-p|--packages <pkg>]... [<pkg>...]"
   echo ""
   echo "Workspace selection (in priority order):"
   echo "  1. Explicit -w/--ws flags."
@@ -30,6 +30,9 @@ print_usage() {
   else
     echo "  ws build without arguments builds all detected workspaces."
   fi
+  if [[ "$WS_DISTCC" == "true" ]]; then
+    echo "  distcc is on (WS_DISTCC_HOSTS=\"$WS_DISTCC_HOSTS\"); --local compiles on this machine."
+  fi
   echo "  Local config: $(ws_config_file)"
   echo ""
   echo "Examples:"
@@ -42,6 +45,7 @@ print_usage() {
   echo "  ws build -w drv_ws"
   echo "  ws build -w drv_ws -p package_a -p package_b"
   echo "  ws build --clean -p package_a"
+  echo "  ws build --local liorf"
 }
 
 if ws_is_help_token "${1:-}"; then
@@ -76,6 +80,7 @@ selected_workspaces=()
 selected_packages=()
 clean_first=false
 build_all=false
+distcc_mode=auto
 
 ws_load_config
 
@@ -87,6 +92,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --clean)
       clean_first=true
+      shift
+      ;;
+    --local)
+      distcc_mode=local
       shift
       ;;
     -w|--ws)
@@ -152,6 +161,8 @@ if [[ -n "${ROS_DISTRO:-}" && -f "/opt/ros/${ROS_DISTRO}/setup.bash" ]]; then
   source "/opt/ros/${ROS_DISTRO}/setup.bash"
   set -u
 fi
+
+ws_distcc_prepare "$distcc_mode"
 
 built_any=false
 status=0

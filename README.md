@@ -16,6 +16,7 @@
   - [Installation](#installation)
   - [Commands](#commands)
     - [`ws build`](#ws-build)
+      - [Distributed builds with distcc](#distributed-builds-with-distcc)
     - [`ws cd`](#ws-cd)
     - [`ws list`](#ws-list)
     - [`ws open`](#ws-open)
@@ -48,6 +49,7 @@ ws list -p                        # list all workspaces + packages + install sta
 ws open my_pkg                    # open package in VS Code (configurable)
 ws which my_pkg my_launch.py      # show source & install paths for a launch file
 ws config set-build-args --symlink-install --continue-on-error
+ws config distcc hosts 10.0.0.2/30,lzo   # compile on another machine
 ws doctor                         # diagnose PATH, ROS env, colcon, config
 ws update                         # git pull + reinstall in one command
 ```
@@ -84,7 +86,7 @@ To uninstall, run `./install.sh --uninstall`.
 ### `ws build`
 
 ```
-ws build [--all] [-w|--ws <workspace>]... [-p|--packages <pkg>]...
+ws build [--all] [--clean] [--local] [-w|--ws <workspace>]... [-p|--packages <pkg>]...
 ```
 
 | Flag | Description |
@@ -93,6 +95,7 @@ ws build [--all] [-w|--ws <workspace>]... [-p|--packages <pkg>]...
 | `-p / --packages` | Package name passed to `--packages-select`; repeatable |
 | `--all` | Build all detected workspaces |
 | `--clean` | Wipe package artifacts before building |
+| `--local` | Compile on this machine even when distcc is on |
 
 ```bash
 ws build --all
@@ -115,6 +118,71 @@ line for your ROS underlay. The workspace config file is still the right place
 for tool settings like build flags, editor commands, and fallback workspaces.
 
 Load order is: `~/.bashrc` -> `ws_env.bash` -> `ws_config.bash`.
+
+#### Distributed builds with distcc
+
+`ws build` can send the compiles of CMake packages to a faster machine with
+[distcc](https://www.distcc.org/). On the client:
+
+```bash
+sudo apt install distcc
+ws config distcc hosts 10.0.0.2/30,lzo   # host[:port][/slots][,lzo]; turns distcc on
+ws config distcc check                     # host answers, same compiler version?
+ws build my_pkg
+```
+
+With distcc on, `ws build`:
+
+- passes `--cmake-args -DCMAKE_C_COMPILER_LAUNCHER=distcc
+  -DCMAKE_CXX_COMPILER_LAUNCHER=distcc -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON`,
+  ahead of any `--cmake-args` of your own;
+- probes each host (`WS_DISTCC_CONNECT_TIMEOUT`, 2 s) and sets
+  `DISTCC_HOSTS` to those that answer;
+- runs as many jobs as they have slots (`ws config distcc jobs <N>` to
+  override); colcon would otherwise cap them at the local core count.
+
+With no host answering, or with `ws build --local`, it compiles locally
+with the same CMake arguments, so nothing is recompiled. Turning distcc on
+or off (`ws config distcc on|off`) changes the compile commands and
+recompiles each package once.
+
+Notes:
+
+- `,lzo` compresses the traffic about 4x; use it over slow or metered links.
+- Precompiled headers are off: distcc preprocesses each file locally, which
+  does not use them, and it would compile the `.gch` files remotely and
+  download them (hundreds of MB each).
+- Preprocessing and linking stay local. Both machines need the same
+  compiler version (`ws config distcc check` compares them), not the same
+  libraries.
+- A per-project cap on parallel compiles (for example a CMake job pool)
+  also caps distcc.
+
+**Traffic.** A clean build of a ROS 2 SLAM package (106 C++
+files, Release with `-g1`), measured at the server's port:
+
+| | Upload | Download | Total |
+|---|---|---|---|
+| `,lzo` | 90 MB | 37 MB | 127 MB |
+| uncompressed | 392 MB | 134 MB | 525 MB |
+| `,lzo` with precompiled headers on | 96 MB | 292 MB | 389 MB |
+
+One source file is about 0.45 MB with `,lzo` (median; the heaviest are about
+5 MB), so a rebuild after editing a `.cpp` costs a few MB, and after editing a
+widely included header close to a clean build. The VPN adds a few percent.
+
+**Server** (Ubuntu): `sudo apt install distcc`, then in `/etc/default/distcc`:
+
+```bash
+STARTDISTCC="true"
+ALLOWEDNETS="127.0.0.1 10.0.0.0/24"   # the clients' network (e.g. the VPN)
+LISTENER="0.0.0.0"                     # or one address that is up before distcc starts
+JOBS="30"                              # slots: about the core count
+NICE="10"
+```
+
+and `sudo systemctl restart distcc`. distccd runs any compiler it is sent
+work for from the allowed networks, so allow only networks you trust.
 
 ---
 
@@ -192,7 +260,7 @@ Removes `build/`, `install/`, and `log/` artifacts for selected packages or enti
 ### `ws config`
 
 ```
-ws config [show|path|env-path|init|env-init|edit|env-edit|set-editor|set-build-program|set-build-subcommand|set-build-args|set-build-env-command|require-all]
+ws config [show|path|env-path|init|env-init|edit|env-edit|set-editor|set-build-program|set-build-subcommand|set-build-args|set-build-env-command|require-all|distcc]
 ```
 
 ```bash
@@ -315,6 +383,7 @@ The Bats suite is split into one file per command under `tests/bats/`:
 | `ws_list_cmd.bats` | `ws list` | quiet-mode symlink metadata, `--installed` filter |
 | `ws_open_cmd.bats` | `ws open` | symlink source path, not-installed error, launch artifact |
 | `ws_config_cmd.bats` | `ws config` | idempotent set-build-program, set-editor with args |
+| `ws_distcc.bats` | `ws build` with distcc, `ws config distcc` | launcher and job args, host probing, local fallback, setters |
 | `ws_which_cmd.bats` | `ws which` | machine-mode symlink metadata, launch completion fallback |
 
 A shared helper (`tests/bats/test_helper.bash`) provides `make_pkg`, `make_pkg_at`, and `set_test_editor_echo` used across suites.

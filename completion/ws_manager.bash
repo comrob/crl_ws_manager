@@ -231,7 +231,7 @@ __ws_complete() {
     fi
 
     if [[ "$cur" == -* ]]; then
-      COMPREPLY=( $(compgen -W "--all --clean -w --ws -p --packages -h --help" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--all --clean --local -w --ws -p --packages -h --help" -- "$cur") )
       return 0
     fi
 
@@ -303,7 +303,7 @@ __ws_complete() {
     fi
 
     if [[ "$cur" == -* ]]; then
-      COMPREPLY=( $(compgen -W "--all --clean -w --ws -p --packages -h --help" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--all --clean --local -w --ws -p --packages -h --help" -- "$cur") )
       return 0
     fi
 
@@ -412,12 +412,17 @@ __ws_complete_config() {
   prev="${COMP_WORDS[COMP_CWORD-1]}"
 
   if [[ $COMP_CWORD -eq 2 ]]; then
-    COMPREPLY=( $(compgen -W "show path init edit set-editor set-build-program set-build-subcommand set-build-args require-all help -h --help" -- "$cur") )
+    COMPREPLY=( $(compgen -W "show path init edit set-editor set-build-program set-build-subcommand set-build-args require-all distcc help -h --help" -- "$cur") )
     return 0
   fi
 
   if [[ "$prev" == "require-all" ]]; then
     COMPREPLY=( $(compgen -W "true false" -- "$cur") )
+    return 0
+  fi
+
+  if [[ $COMP_CWORD -eq 3 && "$prev" == "distcc" ]]; then
+    COMPREPLY=( $(compgen -W "on off hosts jobs check help" -- "$cur") )
     return 0
   fi
 }

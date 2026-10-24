@@ -55,3 +55,14 @@ WS_EDITOR_PROGRAM="code"
 WS_EDITOR_ARGS=(
   --reuse-window
 )
+
+# ---------------------------------------------------------------------------
+# distcc  (ws config distcc help)
+# ---------------------------------------------------------------------------
+
+# Compile CMake packages on other machines. Hosts use distcc's syntax,
+# host[:port][/slots][,lzo]; ,lzo compresses the traffic (about 4x).
+WS_DISTCC=false
+WS_DISTCC_HOSTS=""          # e.g. "10.0.0.2/30,lzo"
+WS_DISTCC_JOBS=auto         # parallel compiles; auto = total slots of the hosts that answer
+WS_DISTCC_CONNECT_TIMEOUT=2 # [s] a host that does not answer in time is skipped

@@ -25,6 +25,7 @@ print_usage() {
   echo "  set-build-env-command <cmd...>"
   echo "                            Set WS_BUILD_ENV_COMMAND"
   echo "  require-all <true|false>  Set WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD"
+  echo "  distcc <command>          Compile through distcc (ws config distcc help)"
   echo ""
   echo "Examples:"
   echo "  ws config"
@@ -35,6 +36,136 @@ print_usage() {
   echo "  ws config set-build-env-command jazzy_env"
   echo "  ws config set-build-args --symlink-install --continue-on-error"
   echo "  ws config require-all true"
+  echo "  ws config distcc hosts 10.0.0.2/30,lzo"
+}
+
+print_distcc_usage() {
+  echo "Usage: ws config distcc <command>"
+  echo ""
+  echo "ws build compiles CMake packages through distcc when it is on: the"
+  echo "compiler launcher is distcc, and the job count is the total slots of"
+  echo "the hosts that answer. Without an answering host it compiles locally."
+  echo ""
+  echo "Commands:"
+  echo "  on | off                  Set WS_DISTCC"
+  echo "  hosts <host>...           Set WS_DISTCC_HOSTS and turn distcc on."
+  echo "                            Host syntax: host[:port][/slots][,lzo]"
+  echo "                            (,lzo compresses the traffic)"
+  echo "  jobs <N|auto>             Set WS_DISTCC_JOBS (auto: total slots)"
+  echo "  check                     Check that each host answers and runs the"
+  echo "                            same compiler version as this machine"
+  echo ""
+  echo "One build without distcc: ws build --local <pkg>"
+  echo "Turning distcc on or off reconfigures CMake packages and recompiles"
+  echo "them; ws build --local and unreachable hosts do not."
+}
+
+# Compile a test file locally and on each host; compare the compiler
+# identification that GCC and Clang write into the object (.comment).
+distcc_check() (
+  ws_load_config
+  if [[ -z "$WS_DISTCC_HOSTS" ]]; then
+    echo "Error: WS_DISTCC_HOSTS is empty (ws config distcc hosts <host>...)." >&2
+    return 1
+  fi
+  local tool
+  for tool in distcc readelf; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      echo "Error: $tool not found." >&2
+      return 1
+    fi
+  done
+
+  local tmp
+  tmp="$(mktemp -d)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$tmp'" EXIT
+  printf 'int ws_distcc_check() { return 0; }\n' > "$tmp/check.cpp"
+  local compiler="${CXX:-c++}"
+  if ! "$compiler" -c "$tmp/check.cpp" -o "$tmp/local.o"; then
+    echo "Error: $compiler cannot compile locally." >&2
+    return 1
+  fi
+  local local_id
+  local_id="$(readelf -p .comment "$tmp/local.o" | sed -n 's/^ *\[ *[0-9]*\] *//p')"
+  echo "WS_DISTCC=$WS_DISTCC"
+  echo "Local compiler: $local_id"
+
+  local failed=false entry addr remote_id
+  for entry in $WS_DISTCC_HOSTS; do
+    if ! addr="$(ws_distcc_host_address "$entry")"; then
+      echo "  [SKIP] $entry (not a TCP host)"
+      continue
+    fi
+    # shellcheck disable=SC2086
+    if ! ws_distcc_host_reachable $addr; then
+      echo "  [FAIL] $entry does not answer (VPN down, firewall, or distccd not running)"
+      failed=true
+      continue
+    fi
+    rm -f "$tmp/remote.o"
+    if ! DISTCC_HOSTS="$entry" DISTCC_FALLBACK=0 DISTCC_LOG="$tmp/distcc.log" \
+        distcc "$compiler" -c "$tmp/check.cpp" -o "$tmp/remote.o" 2>/dev/null; then
+      echo "  [FAIL] $entry answers, but did not compile (is this machine in its ALLOWEDNETS?)"
+      failed=true
+      continue
+    fi
+    remote_id="$(readelf -p .comment "$tmp/remote.o" | sed -n 's/^ *\[ *[0-9]*\] *//p')"
+    if [[ "$remote_id" == "$local_id" ]]; then
+      echo "  [OK]   $entry"
+    else
+      echo "  [FAIL] $entry runs a different compiler: $remote_id"
+      failed=true
+    fi
+  done
+  [[ "$failed" == false ]]
+)
+
+distcc_command() {
+  local sub="${1:-help}"
+  if [[ $# -gt 0 ]]; then
+    shift
+  fi
+  case "$sub" in
+    on|off)
+      local value=true
+      [[ "$sub" == off ]] && value=false
+      ws_upsert_config_assignment "WS_DISTCC" "WS_DISTCC=$value"
+      echo "distcc $sub in $(ws_config_file)"
+      ;;
+    hosts)
+      if [[ $# -eq 0 ]]; then
+        echo "Error: distcc hosts requires at least one host." >&2
+        return 1
+      fi
+      if ! [[ "$*" =~ ^[][A-Za-z0-9.:/,@_+\ -]+$ ]]; then
+        echo "Error: unexpected characters in distcc hosts '$*'." >&2
+        return 1
+      fi
+      ws_upsert_config_assignment "WS_DISTCC_HOSTS" "WS_DISTCC_HOSTS=\"$*\""
+      ws_upsert_config_assignment "WS_DISTCC" "WS_DISTCC=true"
+      echo "distcc on with hosts \"$*\" in $(ws_config_file)"
+      ;;
+    jobs)
+      if [[ $# -ne 1 ]] || ! [[ "$1" =~ ^([0-9]+|auto)$ ]]; then
+        echo "Error: distcc jobs requires a number or auto." >&2
+        return 1
+      fi
+      ws_upsert_config_assignment "WS_DISTCC_JOBS" "WS_DISTCC_JOBS=$1"
+      echo "Updated distcc jobs in $(ws_config_file)"
+      ;;
+    check)
+      distcc_check
+      ;;
+    help|-h|--help)
+      print_distcc_usage
+      ;;
+    *)
+      echo "Error: unknown ws config distcc command '$sub'" >&2
+      print_distcc_usage >&2
+      return 1
+      ;;
+  esac
 }
 
 array_to_shell_list() {
@@ -60,6 +191,9 @@ show_config() {
   echo "  WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=$WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD"
   echo "  WS_EDITOR_PROGRAM=$WS_EDITOR_PROGRAM"
   echo "  WS_EDITOR_ARGS=( $(array_to_shell_list "${WS_EDITOR_ARGS[@]}") )"
+  echo "  WS_DISTCC=$WS_DISTCC"
+  echo "  WS_DISTCC_HOSTS=$WS_DISTCC_HOSTS"
+  echo "  WS_DISTCC_JOBS=$WS_DISTCC_JOBS"
   echo ""
   echo "Environment file contents:"
   if [[ -f "$(ws_env_file)" ]]; then
@@ -169,6 +303,9 @@ case "$cmd" in
     fi
     ws_upsert_config_assignment "WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD" "WS_BUILD_REQUIRE_ALL_FOR_FULL_BUILD=$1"
     echo "Updated require-all in $(ws_config_file)"
+    ;;
+  distcc)
+    distcc_command "$@"
     ;;
   *)
     echo "Error: unknown ws config command '$cmd'" >&2

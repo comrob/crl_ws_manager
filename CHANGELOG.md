@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+- distcc builds: `ws config distcc hosts|on|off|jobs|check`, and
+  `ws build --local`. With distcc on, `ws build` sets distcc as the CMake
+  compiler launcher, disables precompiled headers, probes the hosts, and
+  runs as many jobs as the answering hosts have slots; without an answering
+  host it compiles locally with the same arguments.
+
 ## [0.2.1] - 2026-04-29
 
 ### Changed

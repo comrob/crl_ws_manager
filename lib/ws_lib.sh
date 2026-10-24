@@ -210,6 +210,10 @@ ws_load_config() {
   if ! declare -p WS_DEFAULT_WORKSPACES >/dev/null 2>&1; then
     WS_DEFAULT_WORKSPACES=("$HOME/ros2_ws" "$HOME/dev_ws")
   fi
+  : "${WS_DISTCC:=false}"
+  : "${WS_DISTCC_HOSTS:=}"
+  : "${WS_DISTCC_JOBS:=auto}"
+  : "${WS_DISTCC_CONNECT_TIMEOUT:=2}"
 
   local cfg_file=""
   if [[ -f "$(ws_config_file)" ]]; then
@@ -269,6 +273,10 @@ WS_DEFAULT_WORKSPACES=(
 # Editor command used by: ws open <package>
 WS_EDITOR_PROGRAM="code"
 WS_EDITOR_ARGS=()
+
+# Compile through distcc (ws config distcc --help).
+WS_DISTCC=false
+WS_DISTCC_HOSTS=""
 EOF
 }
 
@@ -346,7 +354,25 @@ ws_build_make_command() {
   if [[ -n "$WS_BUILD_SUBCOMMAND" ]]; then
     _wbmc_ref+=("$WS_BUILD_SUBCOMMAND")
   fi
-  _wbmc_ref+=("${WS_BUILD_DEFAULT_ARGS[@]}")
+
+  # Extra CMake args (WS_BUILD_EXTRA_CMAKE_ARGS, set by ws_distcc_prepare) go
+  # right after an existing --cmake-args, so that the user's own args come
+  # later and win; colcon keeps only the last --cmake-args.
+  local -a extra=()
+  if declare -p WS_BUILD_EXTRA_CMAKE_ARGS >/dev/null 2>&1; then
+    extra=("${WS_BUILD_EXTRA_CMAKE_ARGS[@]}")
+  fi
+  local arg inserted=false
+  for arg in "${WS_BUILD_DEFAULT_ARGS[@]}"; do
+    _wbmc_ref+=("$arg")
+    if [[ "$arg" == "--cmake-args" && "$inserted" == false && ${#extra[@]} -gt 0 ]]; then
+      _wbmc_ref+=("${extra[@]}")
+      inserted=true
+    fi
+  done
+  if [[ ${#extra[@]} -gt 0 && "$inserted" == false ]]; then
+    _wbmc_ref+=(--cmake-args "${extra[@]}")
+  fi
 
   if [[ ${#packages[@]} -gt 0 && -n "$WS_BUILD_PACKAGE_SELECT_FLAG" ]]; then
     _wbmc_ref+=("$WS_BUILD_PACKAGE_SELECT_FLAG" "${packages[@]}")
@@ -366,6 +392,123 @@ ws_shell_join_command() {
   done
 
   printf '%s' "${joined% }"
+}
+
+# ---------------------------------------------------------------------------
+# distcc
+#   With WS_DISTCC=true, ws build compiles CMake packages through distcc on
+#   the hosts of WS_DISTCC_HOSTS (distcc syntax: "host[:port][/slots][,lzo]").
+# ---------------------------------------------------------------------------
+
+# ws_distcc_host_address entry
+#   Print "host port" of a TCP host entry. Return 1 for other entries
+#   (options, zeroconf, localhost, ssh hosts), which are not probed.
+ws_distcc_host_address() {
+  local spec="${1%%,*}"
+  spec="${spec%%/*}"
+  case "$spec" in
+    ""|-*|+*|localhost|*@*) return 1 ;;
+  esac
+  local host="$spec" port=3632
+  if [[ "$spec" =~ ^(.*):([0-9]+)$ ]]; then
+    host="${BASH_REMATCH[1]}"
+    port="${BASH_REMATCH[2]}"
+  fi
+  printf '%s %s' "$host" "$port"
+}
+
+# ws_distcc_entry_slots entry
+#   Print the job slots of a host entry: its /N, else distcc's defaults
+#   (4 per host, 2 for localhost); 0 for options.
+ws_distcc_entry_slots() {
+  local spec="${1%%,*}" slots
+  case "$spec" in
+    ""|-*|+*) echo 0; return 0 ;;
+  esac
+  if [[ "$spec" == */* ]]; then
+    slots="${spec##*/}"
+  elif [[ "${spec%%:*}" == localhost ]]; then
+    slots=2
+  else
+    slots=4
+  fi
+  [[ "$slots" =~ ^[0-9]+$ ]] || slots=4
+  echo "$slots"
+}
+
+# ws_distcc_host_reachable host port
+#   Return 0 when a TCP connection opens within WS_DISTCC_CONNECT_TIMEOUT.
+ws_distcc_host_reachable() {
+  timeout "$WS_DISTCC_CONNECT_TIMEOUT" bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" 2>/dev/null
+}
+
+# ws_distcc_prepare [local]
+#   Set up the environment of ws build. With WS_DISTCC=true:
+#   - WS_BUILD_EXTRA_CMAKE_ARGS gets distcc as the compiler launcher, and
+#     disables precompiled headers: distcc preprocesses each file locally
+#     without them and would compile the large .gch files remotely and
+#     download them (hundreds of MB);
+#   - DISTCC_HOSTS the hosts that answer, and MAKEFLAGS and
+#     CMAKE_BUILD_PARALLEL_LEVEL their total slots (or WS_DISTCC_JOBS);
+#     colcon would otherwise cap the jobs at the local core count.
+#   With no host answering, or with "local", DISTCC_HOSTS=localhost/<cores>:
+#   the launcher stays, since changing it would recompile everything, and
+#   distcc compiles locally. With WS_DISTCC=false the launcher is not added,
+#   but build directories configured with it keep it, so DISTCC_HOSTS
+#   defaults to localhost too.
+ws_distcc_prepare() {
+  local mode="${1:-auto}"
+  ws_load_config
+
+  local cores
+  cores="$(nproc 2>/dev/null || echo 4)"
+  WS_BUILD_EXTRA_CMAKE_ARGS=()
+
+  if [[ "$WS_DISTCC" != "true" ]]; then
+    if [[ -z "${DISTCC_HOSTS:-}" ]]; then
+      export DISTCC_HOSTS="localhost/$cores"
+    fi
+    return 0
+  fi
+
+  if ! command -v distcc >/dev/null 2>&1; then
+    echo "Error: WS_DISTCC=true, but distcc is not installed (sudo apt install distcc)." >&2
+    return 1
+  fi
+  WS_BUILD_EXTRA_CMAKE_ARGS=(
+    -DCMAKE_C_COMPILER_LAUNCHER=distcc
+    -DCMAKE_CXX_COMPILER_LAUNCHER=distcc
+    -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+  )
+
+  local -a hosts=()
+  local entry addr slots=0
+  if [[ "$mode" != "local" ]]; then
+    for entry in $WS_DISTCC_HOSTS; do
+      # shellcheck disable=SC2086
+      if addr="$(ws_distcc_host_address "$entry")" && ! ws_distcc_host_reachable $addr; then
+        echo "distcc: $entry does not answer, skipped" >&2
+        continue
+      fi
+      hosts+=("$entry")
+      slots=$((slots + $(ws_distcc_entry_slots "$entry")))
+    done
+  fi
+
+  if [[ $slots -eq 0 ]]; then
+    export DISTCC_HOSTS="localhost/$cores"
+    echo "distcc: compiling locally"
+    return 0
+  fi
+
+  local jobs="$slots"
+  if [[ "$WS_DISTCC_JOBS" =~ ^[0-9]+$ ]]; then
+    jobs="$WS_DISTCC_JOBS"
+  fi
+  export DISTCC_HOSTS="${hosts[*]}"
+  export MAKEFLAGS="-j$jobs"
+  export CMAKE_BUILD_PARALLEL_LEVEL="$jobs"
+  echo "distcc: $DISTCC_HOSTS ($jobs jobs)"
 }
 
 # ---------------------------------------------------------------------------
