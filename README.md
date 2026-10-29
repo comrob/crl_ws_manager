@@ -142,7 +142,16 @@ With distcc on, `ws build`:
   override); colcon would otherwise cap them at the local core count.
 
 With no host answering, or with `ws build --local`, it compiles locally
-with the same CMake arguments, so nothing is recompiled. Turning distcc on
+with the same CMake arguments, so nothing is recompiled. On a machine that
+must not compile (a robot's computer), `ws config distcc fallback off`:
+a failed remote compile then fails instead of running locally
+(`DISTCC_FALLBACK=0`), and without an answering host the build stops;
+`ws build --local` still compiles there when asked.
+
+A `WS_BUILD_PROGRAM` wrapper that sets `MAKEFLAGS` itself (like the
+`ws_colcon_limited` template, which caps the build's CPU and memory in a
+systemd scope) should take the job count from `WS_BUILD_JOBS`, which
+`ws build` sets while it compiles remotely. Turning distcc on
 or off (`ws config distcc on|off`) changes the compile commands and
 recompiles each package once.
 

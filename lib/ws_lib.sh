@@ -213,6 +213,7 @@ ws_load_config() {
   : "${WS_DISTCC:=false}"
   : "${WS_DISTCC_HOSTS:=}"
   : "${WS_DISTCC_JOBS:=auto}"
+  : "${WS_DISTCC_FALLBACK:=true}"
   : "${WS_DISTCC_CONNECT_TIMEOUT:=2}"
 
   local cfg_file=""
@@ -277,6 +278,7 @@ WS_EDITOR_ARGS=()
 # Compile through distcc (ws config distcc --help).
 WS_DISTCC=false
 WS_DISTCC_HOSTS=""
+WS_DISTCC_FALLBACK=true
 EOF
 }
 
@@ -456,6 +458,12 @@ ws_distcc_host_reachable() {
 #   distcc compiles locally. With WS_DISTCC=false the launcher is not added,
 #   but build directories configured with it keep it, so DISTCC_HOSTS
 #   defaults to localhost too.
+#   With WS_DISTCC_FALLBACK=false nothing compiles on this machine unasked:
+#   DISTCC_FALLBACK=0 (a failed remote compile fails instead of running
+#   locally), and without an answering host the build stops; "local"
+#   (ws build --local) still compiles here.
+#   WS_BUILD_JOBS is the job count with remote hosts (unset otherwise), for
+#   a WS_BUILD_PROGRAM wrapper that sets MAKEFLAGS itself.
 ws_distcc_prepare() {
   local mode="${1:-auto}"
   ws_load_config
@@ -463,6 +471,7 @@ ws_distcc_prepare() {
   local cores
   cores="$(nproc 2>/dev/null || echo 4)"
   WS_BUILD_EXTRA_CMAKE_ARGS=()
+  unset WS_BUILD_JOBS
 
   if [[ "$WS_DISTCC" != "true" ]]; then
     if [[ -z "${DISTCC_HOSTS:-}" ]]; then
@@ -496,6 +505,11 @@ ws_distcc_prepare() {
   fi
 
   if [[ $slots -eq 0 ]]; then
+    if [[ "$mode" != "local" && "$WS_DISTCC_FALLBACK" == "false" ]]; then
+      echo "Error: no distcc host answers, and fallback is off: nothing compiled" >&2
+      echo "  (ws config distcc check; ws build --local compiles here)." >&2
+      return 1
+    fi
     export DISTCC_HOSTS="localhost/$cores"
     echo "distcc: compiling locally"
     return 0
@@ -508,7 +522,11 @@ ws_distcc_prepare() {
   export DISTCC_HOSTS="${hosts[*]}"
   export MAKEFLAGS="-j$jobs"
   export CMAKE_BUILD_PARALLEL_LEVEL="$jobs"
-  echo "distcc: $DISTCC_HOSTS ($jobs jobs)"
+  export WS_BUILD_JOBS="$jobs"
+  if [[ "$WS_DISTCC_FALLBACK" == "false" ]]; then
+    export DISTCC_FALLBACK=0
+  fi
+  echo "distcc: $DISTCC_HOSTS ($jobs jobs$([[ "$WS_DISTCC_FALLBACK" == "false" ]] && echo ", no local fallback"))"
 }
 
 # ---------------------------------------------------------------------------

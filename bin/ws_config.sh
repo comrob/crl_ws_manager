@@ -44,7 +44,8 @@ print_distcc_usage() {
   echo ""
   echo "ws build compiles CMake packages through distcc when it is on: the"
   echo "compiler launcher is distcc, and the job count is the total slots of"
-  echo "the hosts that answer. Without an answering host it compiles locally."
+  echo "the hosts that answer. Without an answering host it compiles locally,"
+  echo "unless fallback is off."
   echo ""
   echo "Commands:"
   echo "  on | off                  Set WS_DISTCC"
@@ -52,6 +53,9 @@ print_distcc_usage() {
   echo "                            Host syntax: host[:port][/slots][,lzo]"
   echo "                            (,lzo compresses the traffic)"
   echo "  jobs <N|auto>             Set WS_DISTCC_JOBS (auto: total slots)"
+  echo "  fallback <on|off>         Set WS_DISTCC_FALLBACK. off: never compile on"
+  echo "                            this machine unasked (a failed remote compile"
+  echo "                            fails; no answering host stops the build)"
   echo "  check                     Check that each host answers and runs the"
   echo "                            same compiler version as this machine"
   echo ""
@@ -154,6 +158,16 @@ distcc_command() {
       ws_upsert_config_assignment "WS_DISTCC_JOBS" "WS_DISTCC_JOBS=$1"
       echo "Updated distcc jobs in $(ws_config_file)"
       ;;
+    fallback)
+      if [[ $# -ne 1 ]] || ! [[ "$1" =~ ^(on|off)$ ]]; then
+        echo "Error: distcc fallback requires on or off." >&2
+        return 1
+      fi
+      local fallback=true
+      [[ "$1" == off ]] && fallback=false
+      ws_upsert_config_assignment "WS_DISTCC_FALLBACK" "WS_DISTCC_FALLBACK=$fallback"
+      echo "distcc fallback $1 in $(ws_config_file)"
+      ;;
     check)
       distcc_check
       ;;
@@ -194,6 +208,7 @@ show_config() {
   echo "  WS_DISTCC=$WS_DISTCC"
   echo "  WS_DISTCC_HOSTS=$WS_DISTCC_HOSTS"
   echo "  WS_DISTCC_JOBS=$WS_DISTCC_JOBS"
+  echo "  WS_DISTCC_FALLBACK=$WS_DISTCC_FALLBACK"
   echo ""
   echo "Environment file contents:"
   if [[ -f "$(ws_env_file)" ]]; then

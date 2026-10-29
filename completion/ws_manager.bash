@@ -422,7 +422,7 @@ __ws_complete_config() {
   fi
 
   if [[ $COMP_CWORD -eq 3 && "$prev" == "distcc" ]]; then
-    COMPREPLY=( $(compgen -W "on off hosts jobs check help" -- "$cur") )
+    COMPREPLY=( $(compgen -W "on off hosts jobs fallback check help" -- "$cur") )
     return 0
   fi
 }

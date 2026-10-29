@@ -100,7 +100,7 @@ if [[ ! -f "$WS_CONFIG_TARGET" ]]; then
 # CLI arguments still take precedence over these defaults.
 
 ws_colcon_limited() {
-  local cores workers quota cpu_offset memory_max cpu_end
+  local cores workers jobs quota cpu_offset memory_max cpu_end
   cores="$(nproc)"
   cpu_offset="${WS_BUILD_CPU_OFFSET:-2}"
   memory_max="${WS_BUILD_MEMORY_MAX:-8G}"
@@ -116,26 +116,30 @@ ws_colcon_limited() {
     quota=1
   fi
 
-  export CMAKE_BUILD_PARALLEL_LEVEL="$workers"
-  export MAKEFLAGS="-j$workers"
+  # Jobs per package: the distcc slots when ws build compiles remotely
+  # (WS_BUILD_JOBS), else the local workers. The CPU quota caps this
+  # machine's share either way (preprocessing and linking stay local).
+  jobs="${WS_BUILD_JOBS:-$workers}"
+  export CMAKE_BUILD_PARALLEL_LEVEL="$jobs"
+  export MAKEFLAGS="-j$jobs"
 
   if command -v systemd-run >/dev/null 2>&1; then
     exec systemd-run --user --scope \
       -p "CPUQuota=${quota}%" \
       -p "MemoryMax=${memory_max}" -- \
-      env CMAKE_BUILD_PARALLEL_LEVEL="$workers" MAKEFLAGS="-j$workers" \
-      colcon --parallel-workers "$workers" "$@"
+      env CMAKE_BUILD_PARALLEL_LEVEL="$jobs" MAKEFLAGS="-j$jobs" \
+      colcon "$1" --parallel-workers "$workers" "${@:2}"
   fi
 
   if command -v taskset >/dev/null 2>&1; then
     cpu_end=$((workers - 1))
     exec taskset -c "0-${cpu_end}" \
-      env CMAKE_BUILD_PARALLEL_LEVEL="$workers" MAKEFLAGS="-j$workers" \
-      colcon --parallel-workers "$workers" "$@"
+      env CMAKE_BUILD_PARALLEL_LEVEL="$jobs" MAKEFLAGS="-j$jobs" \
+      colcon "$1" --parallel-workers "$workers" "${@:2}"
   fi
 
-  exec env CMAKE_BUILD_PARALLEL_LEVEL="$workers" MAKEFLAGS="-j$workers" \
-    colcon --parallel-workers "$workers" "$@"
+  exec env CMAKE_BUILD_PARALLEL_LEVEL="$jobs" MAKEFLAGS="-j$jobs" \
+    colcon "$1" --parallel-workers "$workers" "${@:2}"
 }
 
 WS_BUILD_PROGRAM="ws_colcon_limited"

@@ -10,6 +10,7 @@ setup() {
   cat > "$TEST_HOME/bin/fake_build" <<'SH'
 #!/usr/bin/env bash
 echo "DISTCC_HOSTS=${DISTCC_HOSTS:-} MAKEFLAGS=${MAKEFLAGS:-} PARALLEL=${CMAKE_BUILD_PARALLEL_LEVEL:-}"
+echo "FALLBACK=${DISTCC_FALLBACK:-} JOBS=${WS_BUILD_JOBS:-}"
 echo "ARGS: $*"
 SH
   printf '#!/bin/sh\nexit 0\n' > "$TEST_HOME/bin/distcc"
@@ -115,4 +116,52 @@ teardown() {
 
   run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" distcc hosts 'a;b'
   [ "$status" -ne 0 ]
+}
+
+@test "distcc fallback off: no answering host stops the build, --local still compiles" {
+  run_build WS_DISTCC=true WS_DISTCC_FALLBACK=false WS_DISTCC_HOSTS="127.0.0.1:1/8"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"fallback is off"* ]]
+  [[ "$output" != *"ARGS:"* ]]
+
+  run env HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" ROS_DISTRO="__test_no_ros_setup__" \
+    WS_BUILD_PROGRAM="fake_build" WS_BUILD_SUBCOMMAND="" \
+    WS_DISTCC=true WS_DISTCC_FALLBACK=false WS_DISTCC_HOSTS="127.0.0.1:1/8" \
+    bash "$REPO_ROOT/bin/ws_build.sh" --local -w "$TEST_HOME/ws" pkg
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"compiling locally"* ]]
+}
+
+@test "distcc fallback off: remote compiles never fall back; the job count goes to wrappers" {
+  start_listener
+  run_build WS_DISTCC=true WS_DISTCC_FALLBACK=false WS_DISTCC_HOSTS="127.0.0.1:$PORT/9"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"FALLBACK=0 JOBS=9"* ]]
+  [[ "$output" == *"no local fallback"* ]]
+
+  run_build WS_DISTCC=true WS_DISTCC_HOSTS="127.0.0.1:$PORT/9"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"FALLBACK= JOBS=9"* ]]
+}
+
+@test "ws config distcc fallback stores the switch" {
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" distcc fallback off
+  [ "$status" -eq 0 ]
+  grep -q '^WS_DISTCC_FALLBACK=false$' "$TEST_HOME/.config/crl_ws_manager/ws_config.bash"
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/bin/ws_config.sh" distcc fallback maybe
+  [ "$status" -ne 0 ]
+}
+
+@test "the installed ws_colcon_limited puts colcon's verb first and takes the distcc jobs" {
+  run env HOME="$TEST_HOME" bash "$REPO_ROOT/install.sh"
+  [ "$status" -eq 0 ]
+  # Fake colcon and systemd-run: print what they get, no real scope.
+  printf '#!/usr/bin/env bash\necho "colcon: $* MAKEFLAGS=$MAKEFLAGS"\n' > "$TEST_HOME/bin/colcon"
+  printf '#!/usr/bin/env bash\nwhile [[ "$1" != "--" ]]; do shift; done; shift; exec "$@"\n' > "$TEST_HOME/bin/systemd-run"
+  chmod +x "$TEST_HOME/bin/colcon" "$TEST_HOME/bin/systemd-run"
+  cfg="$TEST_HOME/.config/crl_ws_manager/ws_config.bash"
+  run env HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" WS_BUILD_CPU_OFFSET=0 WS_BUILD_JOBS=24 \
+    bash -c "source '$cfg'; ws_colcon_limited build --packages-select pkg"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "colcon: build --parallel-workers "*" --packages-select pkg MAKEFLAGS=-j24" ]]
 }

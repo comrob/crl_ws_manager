@@ -12,6 +12,16 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
   compiler launcher, disables precompiled headers, probes the hosts, and
   runs as many jobs as the answering hosts have slots; without an answering
   host it compiles locally with the same arguments.
+- `ws config distcc fallback on|off` (`WS_DISTCC_FALLBACK`): off, nothing
+  compiles on this machine unasked: `DISTCC_FALLBACK=0`, and without an
+  answering host the build stops (`ws build --local` still compiles).
+- `WS_BUILD_JOBS`: the distcc job count, for build-program wrappers.
+
+### Fixed
+- The `ws_colcon_limited` template of a new config called
+  `colcon --parallel-workers N build ...`, which colcon rejects: the verb
+  goes first now. With distcc it takes `WS_BUILD_JOBS` as the job count,
+  while its CPU quota still caps the local machine.
 
 ## [0.2.1] - 2026-04-29
 
